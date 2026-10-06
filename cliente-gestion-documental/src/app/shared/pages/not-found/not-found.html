@@ -1,0 +1,81 @@
+<main class="not-found-wrapper min-vh-100 d-flex align-items-center justify-content-center p-3">
+  <div class="container">
+    <div class="row justify-content-center">
+      <div class="col-12 col-md-10 col-lg-7 col-xl-6">
+        
+        <div class="card border shadow-sm rounded-3 text-center p-4 p-md-5 bg-white not-found-card">
+          
+          <!-- Icono Vectorial con Bootstrap Icons -->
+          <div class="icon-container mx-auto mb-3 d-flex align-items-center justify-content-center rounded-circle">
+            <i class="bi bi-file-earmark-x fs-1"></i>
+          </div>
+
+          <!-- Badge de Estado -->
+          <div class="mb-3">
+            <span class="badge rounded-pill status-badge text-uppercase px-3 py-2 fw-semibold">
+              <i class="bi bi-exclamation-triangle me-1"></i>
+              Error 404
+            </span>
+          </div>
+
+          <!-- Título y Mensaje -->
+          <h1 class="h3 fw-bold text-dark mb-2">Página o recurso no encontrado</h1>
+          <p class="text-muted fs-6 mb-4">
+            El archivo, carpeta o dirección que intentas consultar no existe, fue trasladado a la papelera o ha dejado de estar disponible en el sistema.
+          </p>
+
+          <!-- Sugerencias de Verificación -->
+          <div class="suggestions-box text-start p-3 rounded-3 mb-4">
+            <h2 class="fs-6 fw-semibold text-secondary mb-2 d-flex align-items-center">
+              <i class="bi bi-info-circle me-2 text-primary"></i>
+              Sugerencias de verificación:
+            </h2>
+            <ul class="list-unstyled mb-0 small text-muted">
+              <li class="d-flex align-items-start mb-1">
+                <i class="bi bi-check2 text-primary me-2 mt-1"></i>
+                <span>Verifica que la URL o el enlace compartido sea el correcto.</span>
+              </li>
+              <li class="d-flex align-items-start mb-1">
+                <i class="bi bi-check2 text-primary me-2 mt-1"></i>
+                <span>Revisa si el recurso fue movido de carpeta o eliminado por su propietario.</span>
+              </li>
+              <li class="d-flex align-items-start">
+                <i class="bi bi-check2 text-primary me-2 mt-1"></i>
+                <span>Si requieres acceso, solicita permisos al usuario propietario o administrador.</span>
+              </li>
+            </ul>
+          </div>
+
+          <!-- Botones de Acción -->
+          <div class="d-flex flex-column flex-sm-row justify-content-center gap-2">
+            <button
+              type="button"
+              mat-stroked-button
+              class="btn-custom-secondary px-3 py-2"
+              (click)="goBack()"
+              matTooltip="Volver a la vista inmediatamente anterior">
+              <i class="bi bi-arrow-left me-2"></i>
+              Regresar
+            </button>
+
+            <a
+              mat-flat-button
+              routerLink="/"
+              class="btn-custom-primary px-3 py-2 text-decoration-none"
+              matTooltip="Ir a la pantalla principal">
+              <i class="bi bi-house-door me-2"></i>
+              Ir a Mis Archivos
+            </a>
+          </div>
+
+        </div>
+
+        <!-- Footer institucional -->
+        <footer class="text-center mt-3 text-muted small">
+          <span>Sistema de Gestión Documental - 2026</span>
+        </footer>
+
+      </div>
+    </div>
+  </div>
+</main>

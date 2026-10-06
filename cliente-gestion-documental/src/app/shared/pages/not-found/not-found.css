@@ -1,0 +1,62 @@
+/* Contenedor general */
+.not-found-wrapper {
+  background-color: var(--color-bg-global, #f8fafc);
+}
+
+.not-found-card {
+  border-color: var(--color-border, #e2e8f0) !important;
+}
+
+/* Icono central */
+.icon-container {
+  width: 72px;
+  height: 72px;
+  background-color: #eff6ff;
+  border: 1px solid #dbeafe;
+}
+
+.icon-container i {
+  color: var(--color-primary, #1e40af);
+}
+
+/* Badge semántico */
+.status-badge {
+  background-color: #fef2f2;
+  color: #ef4444;
+  font-size: 0.75rem;
+  letter-spacing: 0.05em;
+  border: 1px solid #fee2e2;
+}
+
+/* Caja de sugerencias */
+.suggestions-box {
+  background-color: #f8fafc;
+  border: 1px solid var(--color-border, #e2e8f0);
+}
+
+/* Botón primario corporativo */
+.btn-custom-primary {
+  background-color: var(--color-primary, #1e40af) !important;
+  color: #ffffff !important;
+  font-weight: 500;
+  border-radius: 6px;
+  transition: background-color 0.2s ease;
+}
+
+.btn-custom-primary:hover {
+  background-color: var(--color-primary-hover, #1d4ed8) !important;
+}
+
+/* Botón secundario */
+.btn-custom-secondary {
+  color: var(--color-secondary, #475569) !important;
+  border-color: #cbd5e1 !important;
+  font-weight: 500;
+  border-radius: 6px;
+  transition: background-color 0.2s ease, border-color 0.2s ease;
+}
+
+.btn-custom-secondary:hover {
+  background-color: #f1f5f9 !important;
+  border-color: #94a3b8 !important;
+}
