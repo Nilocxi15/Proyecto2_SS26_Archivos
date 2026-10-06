@@ -1,0 +1,83 @@
+services:
+  # 1. Base de Datos: MongoDB
+  database:
+    image: mongo:7.0
+    container_name: mongo-gestion-documental
+    restart: unless-stopped
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_ROOT_USER:-admin}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD:-password123}
+      MONGO_INITDB_DATABASE: ${MONGO_DATABASE:-gestion_documental}
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
+    networks:
+      - gestion-net
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+
+  # 2. Backend: Node.js / Express
+  backend:
+    build:
+      context: ./servidor-gestion-documental
+      dockerfile: Dockerfile
+    container_name: backend-gestion-documental
+    restart: unless-stopped
+    depends_on:
+      database:
+        condition: service_healthy
+    environment:
+      PORT: 5000
+      MONGO_URI: mongodb://${MONGO_ROOT_USER:-admin}:${MONGO_ROOT_PASSWORD:-password123}@database:27017/${MONGO_DATABASE:-gestion_documental}?authSource=admin
+      CORS_ORIGIN: "*"
+      NODE_ENV: production
+    ports:
+      - "5000:5000"
+    networks:
+      - gestion-net
+  
+  # 3. Frontend: Angular 21 LTS (Servicio Nativo de Angular CLI)
+  frontend:
+    build:
+      context: ./cliente-gestion-documental
+      dockerfile: Dockerfile
+    container_name: frontend-gestion-documental
+    restart: unless-stopped
+    depends_on:
+      - backend
+    ports:
+      - "4200:4200"
+    networks:
+      - gestion-net
+
+  # 4. Gestor Visual de MongoDB: Mongo-Express (Para desarrollo/auditoría)  
+  mongo-express:
+    image: mongo-express:latest
+    container_name: mongo-express-gestion-documental
+    restart: unless-stopped
+    depends_on:
+      database:
+        condition: service_healthy
+    environment:
+      ME_CONFIG_MONGODB_ADMINUSERNAME: ${MONGO_ROOT_USER:-admin}
+      ME_CONFIG_MONGODB_ADMINPASSWORD: ${MONGO_ROOT_PASSWORD:-password123}
+      ME_CONFIG_MONGODB_URL: mongodb://${MONGO_ROOT_USER:-admin}:${MONGO_ROOT_PASSWORD:-password123}@database:27017/?authSource=admin
+      ME_CONFIG_BASICAUTH_USERNAME: admin
+      ME_CONFIG_BASICAUTH_PASSWORD: admin
+    ports:
+      - "8081:8081"
+    networks:
+      - gestion-net
+
+volumes:
+  mongo_data:
+    driver: local
+
+networks:
+  gestion-net:
+    driver: bridge

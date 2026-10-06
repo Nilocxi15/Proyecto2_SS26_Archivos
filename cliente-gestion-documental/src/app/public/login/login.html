@@ -1,0 +1,154 @@
+<main class="login-page min-vh-100 d-flex">
+  <div class="container-fluid p-0">
+    <div class="row g-0 min-vh-100">
+      <!-- Panel Lateral Izquierdo: Presentación Institucional con login.jpg -->
+      <section
+        class="col-lg-6 col-xl-7 d-none d-lg-flex login-hero-side flex-column justify-content-between p-5 text-white position-relative"
+      >
+        <div class="hero-overlay position-absolute top-0 start-0 w-100 h-100"></div>
+
+        <!-- Bloque Central del Hero -->
+        <div class="position-relative z-1 my-auto hero-caption">
+          <h1 class="display-6 fw-bold mb-3 text-white">
+            Organiza, comparte y audita tus documentos en un solo lugar
+          </h1>
+          <p class="text-white-50 fs-6 mb-4">
+            Gestión jerárquica de carpetas, almacenamiento de archivos .txt y .md directamente en
+            base de datos, con control estricto de permisos y trazabilidad de actividad.
+          </p>
+        </div>
+      </section>
+
+      <!-- Panel Lateral Derecho: Formulario de Inicio de Sesión -->
+      <section
+        class="col-12 col-lg-6 col-xl-5 d-flex align-items-center justify-content-center p-4 p-sm-5 bg-white"
+      >
+        <div class="login-form-wrapper w-100">
+          <!-- Cabecera visible en pantallas pequeñas -->
+          <div class="d-flex align-items-center gap-2 mb-4 d-lg-none">
+            <div
+              class="brand-icon-box d-flex align-items-center justify-content-center rounded-3 bg-primary text-white shadow-sm"
+            >
+              <i class="bi bi-folder-fill fs-4"></i>
+            </div>
+            <div>
+              <h2 class="h6 fw-bold mb-0 text-dark">Gestión Documental</h2>
+              <span class="small text-muted">Facultad de Ingeniería</span>
+            </div>
+          </div>
+
+          <!-- Título y Descripción -->
+          <div class="mb-4">
+            <h1 class="h3 fw-bold text-dark mb-1">Iniciar Sesión</h1>
+            <p class="text-muted small mb-0">
+              Ingresa tus credenciales para acceder a la plataforma
+            </p>
+          </div>
+
+          <!-- Formulario de Login -->
+          <form [formGroup]="loginForm" (ngSubmit)="onSubmit()" novalidate>
+            <!-- Campo Correo Electrónico -->
+            <div class="mb-3">
+              <label for="email" class="form-label small fw-semibold text-secondary mb-1">
+                Correo Electrónico
+              </label>
+              <div class="input-group">
+                <span class="input-group-text bg-light border-end-0 text-muted">
+                  <i class="bi bi-envelope"></i>
+                </span>
+                <input
+                  id="email"
+                  type="email"
+                  class="form-control border-start-0"
+                  placeholder="usuario@dominio.com"
+                  formControlName="email"
+                  [class.is-invalid]="
+                    loginForm.controls.email.invalid && loginForm.controls.email.touched
+                  "
+                  autocomplete="email"
+                />
+              </div>
+              @if (loginForm.controls.email.invalid && loginForm.controls.email.touched) {
+                <div class="text-danger small mt-1 d-flex align-items-center">
+                  <i class="bi bi-exclamation-circle me-1"></i>
+                  @if (loginForm.controls.email.errors?.['required']) {
+                    El correo electrónico es requerido.
+                  } @else if (loginForm.controls.email.errors?.['email']) {
+                    Ingresa un correo electrónico con formato válido.
+                  }
+                </div>
+              }
+            </div>
+
+            <!-- Campo Contraseña con Opción de Ver / Ocultar -->
+            <div class="mb-3">
+              <div class="d-flex justify-content-between align-items-center mb-1">
+                <label for="password" class="form-label small fw-semibold text-secondary mb-0">
+                  Contraseña
+                </label>
+              </div>
+              <div class="input-group">
+                <span class="input-group-text bg-light border-end-0 text-muted">
+                  <i class="bi bi-lock"></i>
+                </span>
+                <input
+                  id="password"
+                  [type]="hidePassword() ? 'password' : 'text'"
+                  class="form-control border-start-0 border-end-0"
+                  placeholder="Introduce tu contraseña"
+                  formControlName="password"
+                  [class.is-invalid]="
+                    loginForm.controls.password.invalid && loginForm.controls.password.touched
+                  "
+                  autocomplete="current-password"
+                />
+                <!-- Botón para alternar visibilidad de la contraseña -->
+                <button
+                  type="button"
+                  class="btn btn-outline-light border border-start-0 bg-light text-muted px-3 toggle-btn"
+                  (click)="togglePasswordVisibility()"
+                  [attr.aria-label]="hidePassword() ? 'Mostrar contraseña' : 'Ocultar contraseña'"
+                  matTooltip="{{ hidePassword() ? 'Mostrar contraseña' : 'Ocultar contraseña' }}"
+                >
+                  <i [class]="hidePassword() ? 'bi bi-eye' : 'bi bi-eye-slash'"></i>
+                </button>
+              </div>
+              @if (loginForm.controls.password.invalid && loginForm.controls.password.touched) {
+                <div class="text-danger small mt-1 d-flex align-items-center">
+                  <i class="bi bi-exclamation-circle me-1"></i>
+                  @if (loginForm.controls.password.errors?.['required']) {
+                    La contraseña es requerida.
+                  }
+                </div>
+              }
+              <!-- Enlace hacia la vista de recuperación de contraseña -->
+              <a
+                routerLink="/recover-password"
+                class="text-decoration-none small text-primary fw-medium recover-link"
+                tabindex="0"
+              >
+                ¿Olvidaste tu contraseña?
+              </a>
+            </div>
+
+            <!-- Botón de Envío -->
+            <div class="d-grid mt-4">
+              <button
+                type="submit"
+                class="btn btn-primary btn-submit py-2 fw-semibold d-flex align-items-center justify-content-center shadow-sm"
+                [disabled]="isLoading()"
+              >
+                Iniciar Sesión
+              </button>
+            </div>
+          </form>
+
+          <!-- Pie de página del formulario -->
+          <footer class="mt-4 text-center text-muted small">
+            <span>Sistema de Gestión Documental - 2026</span>
+          </footer>
+        </div>
+      </section>
+    </div>
+  </div>
+</main>

@@ -1,0 +1,94 @@
+/* Contenedor general */
+.login-page {
+  background-color: var(--color-bg-global, #f8fafc);
+}
+
+/* Panel lateral con imagen de fondo institucional login.jpg */
+.login-hero-side {
+  background-image: url('../../resources/login.jpg');
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  min-height: 100vh;
+}
+
+/* Capa de superposición con gradiente corporativo para garantizar legibilidad */
+.hero-overlay {
+  background: linear-gradient(
+    135deg,
+    rgba(30, 64, 175, 0.90) 0%,
+    rgba(15, 23, 42, 0.88) 100%
+  );
+}
+
+.hero-caption {
+  max-width: 520px;
+}
+
+.brand-icon-box {
+  width: 44px;
+  height: 44px;
+}
+
+.status-pill {
+  background-color: rgba(255, 255, 255, 0.15);
+  border-color: rgba(255, 255, 255, 0.3) !important;
+  color: #ffffff;
+}
+
+/* Envoltorio del formulario */
+.login-form-wrapper {
+  max-width: 420px;
+}
+
+/* Enlace de recuperación de contraseña */
+.recover-link {
+  color: var(--color-primary, #1e40af) !important;
+  font-size: 0.8125rem;
+  transition: color 0.15s ease-in-out;
+}
+
+.recover-link:hover {
+  color: var(--color-primary-hover, #1d4ed8) !important;
+  text-decoration: underline !important;
+}
+
+/* Botón de alternancia de contraseña */
+.toggle-btn {
+  border-color: #dee2e6 !important;
+}
+
+.toggle-btn:hover {
+  background-color: #e2e8f0 !important;
+  color: #1e293b !important;
+}
+
+/* Botón de envío */
+.btn-submit {
+  background-color: var(--color-primary, #1e40af) !important;
+  border-color: var(--color-primary, #1e40af) !important;
+  font-size: 0.9375rem;
+  letter-spacing: 0.01em;
+  transition: background-color 0.2s ease, transform 0.1s ease;
+}
+
+.btn-submit:hover:not(:disabled) {
+  background-color: var(--color-primary-hover, #1d4ed8) !important;
+  border-color: var(--color-primary-hover, #1d4ed8) !important;
+}
+
+.btn-submit:active:not(:disabled) {
+  transform: scale(0.99);
+}
+
+/* Tarjeta informativa */
+.note-card {
+  background-color: #f8fafc;
+  border-color: var(--color-border, #e2e8f0) !important;
+}
+
+/* Ajustes de foco para inputs */
+.form-control:focus {
+  border-color: #93c5fd;
+  box-shadow: 0 0 0 0.25rem rgba(37, 99, 235, 0.15);
+}
