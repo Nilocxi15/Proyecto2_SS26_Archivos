@@ -42,7 +42,7 @@ services:
       CORS_ORIGIN: "*"
       JWT_SECRET: ${JWT_SECRET:-secreto_seguro_jwt_gestion_documental_2026_usac}
       JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-1h}
-      NODE_ENV: production
+      NODE_ENV: development
     ports:
       - "5000:5000"
     networks:
@@ -57,7 +57,7 @@ services:
     volumes:
       - ./cliente-gestion-documental:/app
       - /app/node_modules
-    command: npm start -- --host 0.0.0 --port 4200 --proxy-config proxy.conf.json --poll 2000
+    command: npm start -- --host 0.0.0.0 --port 4200 --proxy-config proxy.conf.json --poll 2000
     restart: unless-stopped
     depends_on:
       - backend

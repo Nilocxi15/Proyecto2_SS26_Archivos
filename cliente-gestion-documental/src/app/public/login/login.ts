@@ -7,12 +7,7 @@ import { AuthService } from '../../core/services/auth.service';
 
 @Component({
   selector: 'app-login',
-  imports: [
-    ReactiveFormsModule,
-    RouterLink,
-    MatButtonModule,
-    MatTooltipModule,
-  ],
+  imports: [ReactiveFormsModule, RouterLink, MatButtonModule, MatTooltipModule],
   templateUrl: './login.html',
   styleUrl: './login.css',
 })
@@ -53,16 +48,29 @@ export class Login {
     const { email, password } = this.loginForm.getRawValue();
 
     this.authService.login({ email, password }).subscribe({
-      next: () => {
+      next: (response) => {
         this.isLoading.set(false);
-        // Redirigir a la vista principal tras autenticación exitosa
-        this.router.navigate(['/']);
+        this.navigateToRoleHome(response.usuario.rol);
       },
       error: (err) => {
         this.isLoading.set(false);
-        const mensajeError = err.error?.mensaje || 'Error al conectar con el servidor. Intente nuevamente.';
+        const mensajeError =
+          err.error?.mensaje || 'Error al conectar con el servidor. Intente nuevamente.';
         this.errorMessage.set(mensajeError);
       },
     });
+  }
+
+  private navigateToRoleHome(role: string): void {
+    switch (role) {
+      case 'admin':
+        this.router.navigate(['/admin']);
+        break;
+      case 'usuario':
+        this.router.navigate(['/user']);
+        break;
+      default:
+        this.router.navigate(['/']);
+    }
   }
 }
