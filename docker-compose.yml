@@ -12,6 +12,7 @@ services:
       - "27017:27017"
     volumes:
       - mongo_data:/data/db
+      - ./database:/database:ro
     networks:
       - gestion-net
     healthcheck:
