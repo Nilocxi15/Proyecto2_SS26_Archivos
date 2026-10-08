@@ -1,6 +1,3 @@
-/**
- * Modelo de Usuario en el Sistema de Gestión Documental
- */
 export interface Usuario {
   _id: string;
   nombre: string;

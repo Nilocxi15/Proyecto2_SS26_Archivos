@@ -63,6 +63,7 @@ export class Login {
 
   private navigateToRoleHome(role: string): void {
     switch (role) {
+      case 'administrador':
       case 'admin':
         this.router.navigate(['/admin']);
         break;

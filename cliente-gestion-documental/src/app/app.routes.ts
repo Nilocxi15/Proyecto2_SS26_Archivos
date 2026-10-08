@@ -24,7 +24,7 @@ export const routes: Routes = [
   {
     path: 'admin',
     canActivate: [authGuard, roleGuard],
-    data: { roles: ['admin'] },
+    data: { roles: ['administrador', 'admin'] },
     loadComponent: () => import('./admin/home/home').then((m) => m.Home),
   },
   // USUARIO
