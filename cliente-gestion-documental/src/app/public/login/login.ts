@@ -1,24 +1,24 @@
-import { Component, signal } from '@angular/core';
+import { Component, inject, signal } from '@angular/core';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
-import { RouterLink } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
 import { MatTooltipModule } from '@angular/material/tooltip';
+import { AuthService } from '../../core/services/auth.service';
 
 @Component({
   selector: 'app-login',
-  imports: [
-    ReactiveFormsModule,
-    RouterLink,
-    MatButtonModule,
-    MatTooltipModule,
-  ],
+  imports: [ReactiveFormsModule, RouterLink, MatButtonModule, MatTooltipModule],
   templateUrl: './login.html',
   styleUrl: './login.css',
 })
 export class Login {
-  // Señal reactiva para alternar visibilidad de contraseña
+  private readonly authService = inject(AuthService);
+  private readonly router = inject(Router);
+
+  // Señales reactivas
   protected readonly hidePassword = signal<boolean>(true);
   protected readonly isLoading = signal<boolean>(false);
+  protected readonly errorMessage = signal<string | null>(null);
 
   // Formulario reactivo
   protected readonly loginForm = new FormGroup({
@@ -43,9 +43,34 @@ export class Login {
     }
 
     this.isLoading.set(true);
-    // Simulación de interacción de login para el frontend
-    setTimeout(() => {
-      this.isLoading.set(false);
-    }, 1500);
+    this.errorMessage.set(null);
+
+    const { email, password } = this.loginForm.getRawValue();
+
+    this.authService.login({ email, password }).subscribe({
+      next: (response) => {
+        this.isLoading.set(false);
+        this.navigateToRoleHome(response.usuario.rol);
+      },
+      error: (err) => {
+        this.isLoading.set(false);
+        const mensajeError =
+          err.error?.mensaje || 'Error al conectar con el servidor. Intente nuevamente.';
+        this.errorMessage.set(mensajeError);
+      },
+    });
+  }
+
+  private navigateToRoleHome(role: string): void {
+    switch (role) {
+      case 'admin':
+        this.router.navigate(['/admin']);
+        break;
+      case 'usuario':
+        this.router.navigate(['/user']);
+        break;
+      default:
+        this.router.navigate(['/']);
+    }
   }
 }

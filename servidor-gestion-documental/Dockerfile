@@ -5,8 +5,8 @@ WORKDIR /app
 # Copiar manifiestos de dependencias
 COPY package*.json ./
 
-# Instalar dependencias limpias
-RUN npm ci --omit=dev || npm install --omit=dev
+# Instalar dependencias completas (incluye nodemon para desarrollo con hot-reload)
+RUN npm install
 
 # Copiar el código fuente de la aplicación
 COPY . .
