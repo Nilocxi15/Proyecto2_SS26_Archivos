@@ -28,6 +28,10 @@ services:
       context: ./servidor-gestion-documental
       dockerfile: Dockerfile
     container_name: backend-gestion-documental
+    volumes:
+      - ./servidor-gestion-documental:/app
+      - /app/node_modules
+    command: npm run dev
     restart: unless-stopped
     depends_on:
       database:
@@ -50,6 +54,10 @@ services:
       context: ./cliente-gestion-documental
       dockerfile: Dockerfile
     container_name: frontend-gestion-documental
+    volumes:
+      - ./cliente-gestion-documental:/app
+      - /app/node_modules
+    command: npm start -- --host 0.0.0 --port 4200 --proxy-config proxy.conf.json --poll 2000
     restart: unless-stopped
     depends_on:
       - backend

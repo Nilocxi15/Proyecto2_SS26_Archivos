@@ -45,6 +45,17 @@
             </p>
           </div>
 
+          <!-- Alerta de Error del Servidor -->
+          @if (errorMessage()) {
+            <div
+              class="alert alert-danger d-flex align-items-center small py-2 px-3 mb-3 border-0 shadow-sm"
+              role="alert"
+            >
+              <i class="bi bi-exclamation-triangle-fill me-2 fs-6"></i>
+              <div>{{ errorMessage() }}</div>
+            </div>
+          }
+
           <!-- Formulario de Login -->
           <form [formGroup]="loginForm" (ngSubmit)="onSubmit()" novalidate>
             <!-- Campo Correo Electrónico -->
@@ -138,7 +149,16 @@
                 class="btn btn-primary btn-submit py-2 fw-semibold d-flex align-items-center justify-content-center shadow-sm"
                 [disabled]="isLoading()"
               >
-                Iniciar Sesión
+                @if (isLoading()) {
+                  <span
+                    class="spinner-border spinner-border-sm me-2"
+                    role="status"
+                    aria-hidden="true"
+                  ></span>
+                  <span>Iniciando sesión...</span>
+                } @else {
+                  <span>Iniciar Sesión</span>
+                }
               </button>
             </div>
           </form>
