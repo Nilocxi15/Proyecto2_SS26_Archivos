@@ -1,7 +1,7 @@
 import { Component, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { Navbar } from '../components/navbar/navbar';
-import { MisArchivos } from '../components/mis-archivos/mis-archivos';
+import { Navbar, NavSection } from '../../shared/components/navbar/navbar';
+import { MisArchivos } from '../../shared/components/mis-archivos/mis-archivos';
 
 @Component({
   selector: 'app-home',
@@ -11,9 +11,9 @@ import { MisArchivos } from '../components/mis-archivos/mis-archivos';
 })
 export class Home {
   // Sección activa en el panel de navegación
-  readonly activeSection = signal<'my-files' | 'shared' | 'trash'>('my-files');
+  readonly activeSection = signal<NavSection>('my-files');
 
-  changeSection(section: 'my-files' | 'shared' | 'trash'): void {
+  changeSection(section: NavSection): void {
     this.activeSection.set(section);
   }
 }

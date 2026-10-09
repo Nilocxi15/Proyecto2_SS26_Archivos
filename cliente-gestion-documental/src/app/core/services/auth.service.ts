@@ -19,7 +19,10 @@ export class AuthService {
   // Estado reactivo del usuario en memoria con Angular Signals
   readonly currentUser = signal<Usuario | null>(this.tokenService.getUser());
   readonly isAuthenticated = computed(() => !!this.currentUser());
-  readonly isAdmin = computed(() => this.currentUser()?.rol === 'administrador');
+  readonly isAdmin = computed(() => {
+    const rol = this.currentUser()?.rol;
+    return rol === 'administrador' || rol === ('admin' as any);
+  });
 
   /**
    * Autentica al usuario contra la API del backend
