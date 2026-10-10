@@ -1,26 +1,23 @@
-import { Component, computed, inject, signal } from '@angular/core';
+import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { FileItem, FolderItem } from '../../../core/models/resource.models';
-import { UserStorageService } from '../../../user/services/user-storage.service';
+import { BreadcrumbItem, FileItem, FolderItem } from '../../../core/models/resource.models';
+import { ResourceService } from '../../../core/services/resource.service';
 
 @Component({
   selector: 'app-mis-archivos',
   imports: [CommonModule, FormsModule],
   templateUrl: './mis-archivos.html',
-  styleUrl: './mis-archivos.css'
+  styleUrl: './mis-archivos.css',
 })
-export class MisArchivos {
-  private readonly storageService = inject(UserStorageService);
+export class MisArchivos implements OnInit {
+  readonly resourceService = inject(ResourceService);
 
   // Filtros, búsqueda y modo de vista
   readonly searchTerm = signal<string>('');
   readonly typeFilter = signal<'all' | 'folders' | 'txt' | 'md'>('all');
   readonly sortBy = signal<'name' | 'date' | 'size'>('name');
   readonly viewMode = signal<'grid' | 'table'>('grid');
-
-  // Navegación jerárquica de carpetas
-  readonly currentFolder = signal<FolderItem | null>(null);
 
   // Estado del modal de nueva carpeta
   readonly isNewFolderModalVisible = signal<boolean>(false);
@@ -40,6 +37,12 @@ export class MisArchivos {
   // Notificación de éxito
   readonly successNotification = signal<string | null>(null);
 
+  // Exposición de señales del servicio
+  readonly isLoading = this.resourceService.isLoading;
+  readonly currentFolder = this.resourceService.currentFolder;
+  readonly breadcrumbs = this.resourceService.breadcrumbs;
+  readonly serviceError = this.resourceService.error;
+
   // Ruta textual actual para breadcrumbs
   readonly currentPathText = computed(() => {
     return this.currentFolder() ? this.currentFolder()!.path : '';
@@ -54,16 +57,16 @@ export class MisArchivos {
       return [];
     }
 
-    const currentFolderId = this.currentFolder()?.id || null;
-
-    let items = this.storageService.folders().filter(
-      (folder) => folder.parentFolderId === currentFolderId && folder.name.toLowerCase().includes(text)
-    );
+    let items = this.resourceService
+      .folders()
+      .filter((folder) => folder.name.toLowerCase().includes(text));
 
     if (this.sortBy() === 'name') {
       items = items.sort((a, b) => a.name.localeCompare(b.name));
     } else if (this.sortBy() === 'date') {
-      items = items.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
+      items = items.sort(
+        (a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime(),
+      );
     }
 
     return items;
@@ -78,35 +81,44 @@ export class MisArchivos {
       return [];
     }
 
-    const currentFolderId = this.currentFolder()?.id || null;
-
-    let items = this.storageService.files().filter((file) => {
-      const isSameLocation = file.folderId === currentFolderId;
+    let items = this.resourceService.files().filter((file) => {
       const matchesSearch = file.name.toLowerCase().includes(text);
+      const ext = file.extension.replace('.', '').toLowerCase();
 
-      if (filter === 'txt') return isSameLocation && matchesSearch && file.extension === '.txt';
-      if (filter === 'md') return isSameLocation && matchesSearch && file.extension === '.md';
-      return isSameLocation && matchesSearch;
+      if (filter === 'txt') return matchesSearch && ext === 'txt';
+      if (filter === 'md') return matchesSearch && ext === 'md';
+      return matchesSearch;
     });
 
     if (this.sortBy() === 'name') {
       items = items.sort((a, b) => a.name.localeCompare(b.name));
     } else if (this.sortBy() === 'date') {
-      items = items.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
+      items = items.sort(
+        (a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime(),
+      );
     } else if (this.sortBy() === 'size') {
-      items = items.sort((a, b) => b.size - a.size);
+      items = items.sort((a, b) => (b.sizeBytes || 0) - (a.sizeBytes || 0));
     }
 
     return items;
   });
 
+  ngOnInit(): void {
+    // Carga inicial en la raíz de Mis Archivos
+    this.resourceService.loadMisArchivos().subscribe();
+  }
+
   // Navegación entre carpetas
   openFolder(folder: FolderItem): void {
-    this.currentFolder.set(folder);
+    this.resourceService.loadMisArchivos(folder._id).subscribe();
   }
 
   goToRoot(): void {
-    this.currentFolder.set(null);
+    this.resourceService.loadMisArchivos(null).subscribe();
+  }
+
+  goToBreadcrumb(crumb: BreadcrumbItem): void {
+    this.resourceService.loadMisArchivos(crumb._id).subscribe();
   }
 
   // CREAR NUEVA CARPETA
@@ -128,12 +140,18 @@ export class MisArchivos {
       return;
     }
 
-    const parentFolderId = this.currentFolder()?.id || null;
-    const currentPath = this.currentFolder() ? this.currentFolder()!.path : '';
+    const parentId = this.currentFolder()?._id || null;
 
-    this.storageService.createFolder(folderName, parentFolderId, currentPath);
-    this.closeNewFolderModal();
-    this.showNotification(`Carpeta "${folderName}" creada exitosamente`);
+    this.resourceService.createFolder({ name: folderName, parentId }).subscribe({
+      next: () => {
+        this.closeNewFolderModal();
+        this.showNotification(`Carpeta "${folderName}" creada exitosamente`);
+      },
+      error: (err) => {
+        const msg = err?.error?.mensaje || 'Error al crear la carpeta en el servidor';
+        this.newFolderError.set(msg);
+      },
+    });
   }
 
   // SUBIR ARCHIVO (.TXT Y .MD EXCLUSIVAMENTE)
@@ -180,24 +198,31 @@ export class MisArchivos {
       return;
     }
 
-    const extension: '.txt' | '.md' = file.name.toLowerCase().endsWith('.md') ? '.md' : '.txt';
-    const folderId = this.currentFolder()?.id || null;
-    const currentPath = this.currentFolder() ? this.currentFolder()!.path : '';
+    const extension = file.name.toLowerCase().endsWith('.md') ? 'md' : 'txt';
+    const folderId = this.currentFolder()?._id || null;
 
     // Lectura del archivo como texto
     const reader = new FileReader();
     reader.onload = () => {
       const content = (reader.result as string) || '';
-      this.storageService.uploadFile(
-        file.name,
-        extension,
-        file.size,
-        content,
-        folderId,
-        currentPath
-      );
-      this.closeUploadFileModal();
-      this.showNotification(`Archivo "${file.name}" cargado exitosamente`);
+
+      this.resourceService
+        .uploadFile({
+          name: file.name,
+          extension,
+          content,
+          folderId,
+        })
+        .subscribe({
+          next: () => {
+            this.closeUploadFileModal();
+            this.showNotification(`Archivo "${file.name}" cargado exitosamente`);
+          },
+          error: (err) => {
+            const msg = err?.error?.mensaje || 'Error al subir el archivo al servidor';
+            this.uploadFileError.set(msg);
+          },
+        });
     };
     reader.readAsText(file);
   }
@@ -247,7 +272,12 @@ export class MisArchivos {
       month: 'short',
       year: 'numeric',
       hour: '2-digit',
-      minute: '2-digit'
+      minute: '2-digit',
     });
+  }
+
+  normalizeExtension(ext?: string): string {
+    if (!ext) return '';
+    return ext.startsWith('.') ? ext : `.${ext}`;
   }
 }

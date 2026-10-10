@@ -1,29 +1,67 @@
 export interface FolderItem {
-  id: string;
+  _id: string;
+  id?: string;
   name: string;
   ownerId: string;
-  parentFolderId: string | null;
+  parentId: string | null;
+  parentFolderId?: string | null;
   path: string;
-  itemCount: number;
+  ancestors?: string[];
+  sharedWith?: Array<{ userId: string; permission: string }>;
+  itemCount?: number;
+  isTrash?: boolean;
   createdAt: string;
   updatedAt: string;
 }
 
 export interface FileItem {
-  id: string;
+  _id: string;
+  id?: string;
   name: string;
-  extension: '.txt' | '.md';
-  size: number; // Tamaño en bytes
+  extension: string;
+  sizeBytes: number;
+  size?: number;
   ownerId: string;
-  ownerName: string;
+  ownerName?: string;
   folderId: string | null;
-  path: string;
+  path?: string;
   content?: string;
-  permission?: 'Lectura' | 'Edición' | 'Comentar';
+  sharedWith?: Array<{ userId: string; permission: string }>;
+  tags?: string[];
+  isTrash?: boolean;
   createdAt: string;
   updatedAt: string;
 }
 
+export interface BreadcrumbItem {
+  _id: string;
+  name: string;
+}
+
+export interface MisArchivosData {
+  currentFolder: FolderItem | null;
+  breadcrumbs: BreadcrumbItem[];
+  folders: FolderItem[];
+  files: FileItem[];
+}
+
+export interface MisArchivosResponse {
+  status: string;
+  data: MisArchivosData;
+}
+
+export interface CreateFolderRequest {
+  name: string;
+  parentId?: string | null;
+}
+
+export interface CreateFileRequest {
+  name: string;
+  extension?: string;
+  content: string;
+  folderId?: string | null;
+  tags?: string[];
+}
+
 export type SelectedResource =
-  | { type: 'folder'; data: FolderItem }
-  | { type: 'file'; data: FileItem };
+  { type: 'folder'; data: FolderItem } | { type: 'file'; data: FileItem };

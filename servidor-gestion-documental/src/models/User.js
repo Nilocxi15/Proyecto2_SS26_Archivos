@@ -6,11 +6,17 @@ const bcrypt = require('bcryptjs');
  */
 const userSchema = new mongoose.Schema(
   {
-    nombre: {
+    name: {
       type: String,
       required: [true, 'El nombre completo es obligatorio'],
       trim: true,
       maxlength: [100, 'El nombre no puede exceder los 100 caracteres']
+    },
+    lastName: {
+      type: String,
+      required: [true, 'El apellido es obligatorio'],
+      trim: true,
+      maxlength: [100, 'El apellido no puede exceder los 100 caracteres']
     },
     email: {
       type: String,
@@ -29,7 +35,7 @@ const userSchema = new mongoose.Schema(
       minlength: [6, 'La contraseña debe tener al menos 6 caracteres'],
       select: false // Evita enviar la contraseña en consultas por defecto
     },
-    rol: {
+    role: {
       type: String,
       enum: {
         values: ['administrador', 'usuario'],
@@ -37,7 +43,7 @@ const userSchema = new mongoose.Schema(
       },
       default: 'usuario'
     },
-    estado: {
+    status: {
       type: String,
       enum: {
         values: ['activo', 'inactivo'],

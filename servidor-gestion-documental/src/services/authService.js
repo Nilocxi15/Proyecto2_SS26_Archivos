@@ -1,10 +1,6 @@
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 
-/**
- * Servicio de Autenticación y Usuarios
- * Contiene la lógica de negocio pura, independiente del protocolo HTTP (req/res).
- */
 
 /**
  * Genera un token JWT firmado para el usuario
@@ -43,7 +39,8 @@ const login = async (email, password) => {
   }
 
   // Regla de negocio: Validar estado activo
-  if (usuario.estado !== 'activo') {
+  const userStatus = usuario.status || usuario.estado;
+  if (userStatus && userStatus !== 'activo') {
     const error = new Error('La cuenta se encuentra inactiva. Comuníquese con el administrador del sistema');
     error.statusCode = 403;
     throw error;
@@ -57,7 +54,8 @@ const login = async (email, password) => {
     throw error;
   }
 
-  const token = generarToken(usuario._id, usuario.rol);
+  const userRole = usuario.role || usuario.rol;
+  const token = generarToken(usuario._id, userRole);
 
   return {
     token,
