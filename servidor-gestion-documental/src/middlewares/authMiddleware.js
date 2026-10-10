@@ -4,7 +4,7 @@ const User = require('../models/User');
 /**
  * Middleware para proteger rutas mediante verificación de JWT
  */
-const protegerRuta = async (req, res, next) => {
+const protectRoutes = async (req, res, next) => {
   let token;
 
   // Extraer el token del header Authorization (Bearer <token>)
@@ -37,7 +37,8 @@ const protegerRuta = async (req, res, next) => {
     }
 
     // Validar regla de negocio: Si el usuario fue desactivado, rechazar la petición
-    if (usuario.estado !== 'activo') {
+    const userStatus = usuario.status || usuario.estado;
+    if (userStatus && userStatus !== 'activo') {
       return res.status(403).json({
         status: 'error',
         mensaje: 'Cuenta inactiva. No tiene permisos para realizar esta acción'
@@ -59,9 +60,10 @@ const protegerRuta = async (req, res, next) => {
  * Middleware para restringir acceso por roles
  * @param  {...string} rolesPermitidos - Lista de roles autorizados
  */
-const permitirRoles = (...rolesPermitidos) => {
+const allowRoles = (...rolesPermitidos) => {
   return (req, res, next) => {
-    if (!req.user || !rolesPermitidos.includes(req.user.rol)) {
+    const userRole = req.user?.role || req.user?.rol;
+    if (!req.user || !rolesPermitidos.includes(userRole)) {
       return res.status(403).json({
         status: 'error',
         mensaje: 'No tienes permisos suficientes para realizar esta acción'
@@ -72,6 +74,8 @@ const permitirRoles = (...rolesPermitidos) => {
 };
 
 module.exports = {
-  protegerRuta,
-  permitirRoles
+  protectRoutes,
+  protegerRuta: protectRoutes,
+  allowRoles,
+  permitirRoles: allowRoles
 };

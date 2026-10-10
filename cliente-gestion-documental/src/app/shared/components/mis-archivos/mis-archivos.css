@@ -1,0 +1,27 @@
+.folder-card,
+.file-card {
+  transition: transform 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+  border: 1px solid var(--color-border) !important;
+}
+
+.folder-card:hover,
+.file-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08) !important;
+}
+
+.cursor-pointer {
+  cursor: pointer;
+}
+
+.tracking-wide {
+  letter-spacing: 0.05em;
+}
+
+.empty-state {
+  max-width: 480px;
+}
+
+.background-modal {
+  background-color: rgba(0, 0, 0, 0.5);
+}

@@ -1,9 +1,19 @@
-import { Component } from '@angular/core';
+import { Component, signal } from '@angular/core';
+import { CommonModule } from '@angular/common';
+import { Navbar, NavSection } from '../../shared/components/navbar/navbar';
+import { MisArchivos } from '../../shared/components/mis-archivos/mis-archivos';
 
 @Component({
   selector: 'app-home',
-  imports: [],
+  imports: [CommonModule, Navbar, MisArchivos],
   templateUrl: './home.html',
   styleUrl: './home.css',
 })
-export class Home {}
+export class Home {
+  // Sección activa en el panel de navegación
+  readonly activeSection = signal<NavSection>('my-files');
+
+  changeSection(section: NavSection): void {
+    this.activeSection.set(section);
+  }
+}
