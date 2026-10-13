@@ -1,0 +1,436 @@
+<!-- Encabezado de la Vista -->
+<header class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-3">
+  <div class="d-flex align-items-center gap-2">
+    <button
+      type="button"
+      class="btn btn-outline-secondary d-flex align-items-center rounded-pill px-3 py-2 shadow-sm fw-medium btn-sm"
+      (click)="loadProfileData()"
+      [disabled]="isLoading()"
+      title="Recargar información"
+    >
+      <i class="bi bi-arrow-clockwise me-1" [class.spin-animation]="isLoading()"></i>
+      <span>Actualizar</span>
+    </button>
+  </div>
+</header>
+
+<!-- Alerta de Error de Carga -->
+@if (loadError()) {
+  <div
+    class="alert alert-danger alert-dismissible fade show d-flex align-items-center shadow-sm mb-4 border-0"
+    role="alert"
+  >
+    <i class="bi bi-exclamation-triangle-fill me-2 fs-5"></i>
+    <div>{{ loadError() }}</div>
+    <button
+      type="button"
+      class="btn-close"
+      aria-label="Cerrar"
+      (click)="loadError.set(null)"
+    ></button>
+  </div>
+}
+
+<!-- Indicador de Carga Inicial -->
+@if (isLoading()) {
+  <div class="card border-0 shadow-sm rounded-3 bg-white p-5 text-center my-4">
+    <div class="spinner-border text-primary mb-3" role="status" style="width: 3rem; height: 3rem">
+      <span class="visually-hidden">Cargando...</span>
+    </div>
+    <h2 class="h6 fw-semibold text-dark mb-1">Cargando perfil y estadísticas...</h2>
+    <p class="text-muted small mb-0">Por favor, espera un momento</p>
+  </div>
+} @else if (profile()) {
+  @let user = profile()!.usuario;
+  @let storage = profile()!.storage;
+
+  <div class="row g-4">
+    <!-- COLUMNA IZQUIERDA: INFORMACIÓN PERSONAL Y SEGURIDAD -->
+    <div class="col-12 col-lg-7">
+      <!-- TARJETA: INFORMACIÓN PERSONAL -->
+      <div class="card border-0 shadow-sm rounded-3 bg-white mb-4 overflow-hidden">
+        <div
+          class="card-header bg-white border-bottom py-3 px-4 d-flex align-items-center justify-content-between"
+        >
+          <div class="d-flex align-items-center gap-2">
+            <i class="bi bi-person-circle text-primary fs-5"></i>
+            <h2 class="h6 fw-bold mb-0 text-dark">Información de la Cuenta</h2>
+          </div>
+          <span
+            class="badge"
+            [class.bg-success-subtle]="user.status === 'activo' || user.estado === 'activo'"
+            [class.text-success-emphasis]="user.status === 'activo' || user.estado === 'activo'"
+          >
+            <i class="bi bi-check-circle-fill me-1"></i
+            >{{ user.status || user.estado || 'activo' | uppercase }}
+          </span>
+        </div>
+
+        <div class="card-body p-4">
+          <div class="d-flex align-items-center gap-3 mb-4 pb-3 border-bottom">
+            <div
+              class="profile-avatar-circle bg-primary-subtle text-primary fw-bold d-flex align-items-center justify-content-center"
+            >
+              <i class="bi bi-person-fill fs-1"></i>
+            </div>
+            <div>
+              <h3 class="h5 fw-bold text-dark mb-1">
+                {{ user.name || user.nombre || 'Usuario' }} {{ user.lastName || '' }}
+              </h3>
+              <p class="text-muted small mb-1">
+                {{ user.email }}
+              </p>
+              <div>
+                @if (
+                  user.role === 'administrador' ||
+                  user.role === 'admin' ||
+                  user.rol === 'administrador'
+                ) {
+                  <span class="badge bg-warning text-dark fw-bold rounded-pill">
+                    <i class="bi bi-shield-shaded me-1"></i>Administrador del Sistema
+                  </span>
+                } @else {
+                  <span class="badge bg-primary-subtle text-primary-emphasis rounded-pill">
+                    <i class="bi bi-person me-1"></i>Usuario Estándar
+                  </span>
+                }
+              </div>
+            </div>
+          </div>
+
+          <dl class="row mb-0 small">
+            <dt class="col-sm-4 text-muted mb-2">Nombre completo:</dt>
+            <dd class="col-sm-8 fw-semibold text-dark mb-2">
+              {{ user.name || user.nombre || 'No registrado' }} {{ user.lastName || '' }}
+            </dd>
+
+            <dt class="col-sm-4 text-muted mb-2">Correo electrónico:</dt>
+            <dd class="col-sm-8 text-dark mb-2 font-monospace">{{ user.email }}</dd>
+
+            <dt class="col-sm-4 text-muted mb-2">Rol asignado:</dt>
+            <dd class="col-sm-8 text-dark mb-2 text-capitalize">
+              {{ user.role || user.rol || 'usuario' }}
+            </dd>
+
+            <dt class="col-sm-4 text-muted mb-2">Fecha de registro:</dt>
+            <dd class="col-sm-8 text-dark mb-2">{{ formatDate(user.createdAt) }}</dd>
+
+            <dt class="col-sm-4 text-muted mb-0">Identificador (ID):</dt>
+            <dd
+              class="col-sm-8 text-muted mb-0 font-monospace text-truncate"
+              title="{{ user._id }}"
+            >
+              <code>{{ user._id }}</code>
+            </dd>
+          </dl>
+        </div>
+      </div>
+
+      <!-- TARJETA: CAMBIO DE CONTRASEÑA -->
+      <div class="card border-0 shadow-sm rounded-3 bg-white overflow-hidden">
+        <div class="card-header bg-white border-bottom py-3 px-4 d-flex align-items-center gap-2">
+          <i class="bi bi-shield-lock text-primary fs-5"></i>
+          <h2 class="h6 fw-bold mb-0 text-dark">Seguridad y Cambio de Contraseña</h2>
+        </div>
+
+        <div class="card-body p-4">
+          <!-- Alerta de Éxito de Contraseña -->
+          @if (passwordSuccess()) {
+            <div
+              class="alert alert-success alert-dismissible fade show d-flex align-items-center shadow-sm mb-3 border-0 small"
+              role="alert"
+            >
+              <i class="bi bi-check-circle-fill me-2 fs-5"></i>
+              <div>{{ passwordSuccess() }}</div>
+              <button
+                type="button"
+                class="btn-close"
+                aria-label="Cerrar"
+                (click)="passwordSuccess.set(null)"
+              ></button>
+            </div>
+          }
+
+          <!-- Alerta de Error de Contraseña -->
+          @if (passwordError()) {
+            <div
+              class="alert alert-danger alert-dismissible fade show d-flex align-items-center shadow-sm mb-3 border-0 small"
+              role="alert"
+            >
+              <i class="bi bi-exclamation-circle-fill me-2 fs-5"></i>
+              <div>{{ passwordError() }}</div>
+              <button
+                type="button"
+                class="btn-close"
+                aria-label="Cerrar"
+                (click)="passwordError.set(null)"
+              ></button>
+            </div>
+          }
+
+          <form (ngSubmit)="onChangePassword()" class="needs-validation">
+            <!-- Contraseña Actual -->
+            <div class="mb-3">
+              <label for="currentPasswordInput" class="form-label small fw-semibold text-secondary">
+                Contraseña actual
+              </label>
+              <div class="input-group">
+                <span class="input-group-text bg-light text-muted border-end-0">
+                  <i class="bi bi-key"></i>
+                </span>
+                <input
+                  id="currentPasswordInput"
+                  [type]="showCurrentPassword() ? 'text' : 'password'"
+                  class="form-control border-start-0 border-end-0 bg-light"
+                  placeholder="Ingresa tu contraseña actual"
+                  [ngModel]="currentPassword()"
+                  (ngModelChange)="currentPassword.set($event)"
+                  name="currentPassword"
+                  required
+                />
+                <button
+                  type="button"
+                  class="btn btn-light border-start-0 text-muted"
+                  (click)="showCurrentPassword.set(!showCurrentPassword())"
+                  title="Mostrar/Ocultar contraseña"
+                >
+                  <i
+                    class="bi"
+                    [class.bi-eye]="!showCurrentPassword()"
+                    [class.bi-eye-slash]="showCurrentPassword()"
+                  ></i>
+                </button>
+              </div>
+            </div>
+
+            <!-- Nueva Contraseña -->
+            <div class="mb-3">
+              <label for="newPasswordInput" class="form-label small fw-semibold text-secondary">
+                Nueva contraseña
+              </label>
+              <div class="input-group">
+                <span class="input-group-text bg-light text-muted border-end-0">
+                  <i class="bi bi-lock"></i>
+                </span>
+                <input
+                  id="newPasswordInput"
+                  [type]="showNewPassword() ? 'text' : 'password'"
+                  class="form-control border-start-0 border-end-0 bg-light"
+                  placeholder="Mínimo 6 caracteres"
+                  [ngModel]="newPassword()"
+                  (ngModelChange)="newPassword.set($event)"
+                  name="newPassword"
+                  required
+                  minlength="6"
+                />
+                <button
+                  type="button"
+                  class="btn btn-light border-start-0 text-muted"
+                  (click)="showNewPassword.set(!showNewPassword())"
+                  title="Mostrar/Ocultar contraseña"
+                >
+                  <i
+                    class="bi"
+                    [class.bi-eye]="!showNewPassword()"
+                    [class.bi-eye-slash]="showNewPassword()"
+                  ></i>
+                </button>
+              </div>
+              <div class="form-text small">
+                La contraseña debe poseer un mínimo de 6 caracteres.
+              </div>
+            </div>
+
+            <!-- Confirmar Nueva Contraseña -->
+            <div class="mb-4">
+              <label for="confirmPasswordInput" class="form-label small fw-semibold text-secondary">
+                Confirmar nueva contraseña
+              </label>
+              <div class="input-group">
+                <span class="input-group-text bg-light text-muted border-end-0">
+                  <i class="bi bi-lock-fill"></i>
+                </span>
+                <input
+                  id="confirmPasswordInput"
+                  [type]="showConfirmPassword() ? 'text' : 'password'"
+                  class="form-control border-start-0 border-end-0 bg-light"
+                  placeholder="Repite la nueva contraseña"
+                  [ngModel]="confirmPassword()"
+                  (ngModelChange)="confirmPassword.set($event)"
+                  name="confirmPassword"
+                  required
+                />
+                <button
+                  type="button"
+                  class="btn btn-light border-start-0 text-muted"
+                  (click)="showConfirmPassword.set(!showConfirmPassword())"
+                  title="Mostrar/Ocultar contraseña"
+                >
+                  <i
+                    class="bi"
+                    [class.bi-eye]="!showConfirmPassword()"
+                    [class.bi-eye-slash]="showConfirmPassword()"
+                  ></i>
+                </button>
+              </div>
+            </div>
+
+            <div class="d-flex justify-content-end">
+              <button
+                type="submit"
+                class="btn btn-primary rounded-pill px-4 shadow-sm fw-medium d-flex align-items-center"
+                [disabled]="
+                  isChangingPassword() || !currentPassword() || !newPassword() || !confirmPassword()
+                "
+              >
+                @if (isChangingPassword()) {
+                  <span
+                    class="spinner-border spinner-border-sm me-2"
+                    role="status"
+                    aria-hidden="true"
+                  ></span>
+                  <span>Guardando...</span>
+                } @else {
+                  <i class="bi bi-check2-circle me-2"></i>
+                  <span>Actualizar Contraseña</span>
+                }
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <!-- COLUMNA DERECHA: ESPACIO DE ALMACENAMIENTO -->
+    <div class="col-12 col-lg-5">
+      <!-- TARJETA: MONITOR DE ALMACENAMIENTO -->
+      <div class="card border-0 shadow-sm rounded-3 bg-white mb-4 overflow-hidden">
+        <div
+          class="card-header bg-white border-bottom py-3 px-4 d-flex align-items-center justify-content-between"
+        >
+          <div class="d-flex align-items-center gap-2">
+            <i class="bi bi-hdd-network text-primary fs-5"></i>
+            <h2 class="h6 fw-bold mb-0 text-dark">Espacio de Almacenamiento</h2>
+          </div>
+          <span class="badge bg-light text-secondary border">
+            {{ storage.usedPercentage }}% Ocupado
+          </span>
+        </div>
+
+        <div class="card-body p-4">
+          <!-- Barra de Progreso Principal -->
+          <div class="mb-4">
+            <div class="d-flex justify-content-between align-items-baseline mb-2">
+              <span class="fw-bold text-dark fs-5">
+                {{ formatBytes(storage.totalUsedBytes) }}
+              </span>
+              <span class="text-muted small">
+                de {{ formatBytes(storage.limitBytes) }} asignados
+              </span>
+            </div>
+
+            <div class="progress rounded-pill shadow-inner" style="height: 12px">
+              <div
+                class="progress-bar progress-bar-striped progress-bar-animated"
+                [ngClass]="getStorageProgressClass(storage.usedPercentage)"
+                role="progressbar"
+                [style.width.%]="storage.usedPercentage"
+                [attr.aria-valuenow]="storage.usedPercentage"
+                aria-valuemin="0"
+                aria-valuemax="100"
+              ></div>
+            </div>
+
+            <div class="d-flex justify-content-between text-muted small mt-2">
+              <span>0 B</span>
+              <span class="fw-medium text-success">
+                <i class="bi bi-check2 me-1"></i
+                >{{ formatBytes(storage.availableBytes) }} disponibles
+              </span>
+              <span>{{ formatBytes(storage.limitBytes) }}</span>
+            </div>
+          </div>
+
+          <!-- Tarjetas Resumen de Espacio -->
+          <div class="row g-2 mb-4">
+            <!-- Utilizado -->
+            <div class="col-6">
+              <div class="p-3 bg-light rounded-3 border-0">
+                <div class="d-flex align-items-center gap-2 mb-1">
+                  <i class="bi bi-cloud-arrow-up text-primary fs-5"></i>
+                  <span class="text-muted small fw-semibold">Utilizado</span>
+                </div>
+                <div class="fw-bold text-dark fs-6">{{ formatBytes(storage.totalUsedBytes) }}</div>
+              </div>
+            </div>
+
+            <!-- Disponible -->
+            <div class="col-6">
+              <div class="p-3 bg-success-subtle rounded-3 border-0">
+                <div class="d-flex align-items-center gap-2 mb-1">
+                  <i class="bi bi-shield-check text-success fs-5"></i>
+                  <span class="text-success-emphasis small fw-semibold">Disponible</span>
+                </div>
+                <div class="fw-bold text-success-emphasis fs-6">
+                  {{ formatBytes(storage.availableBytes) }}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Desglose por Tipo de Contenido -->
+          <h3 class="h6 fw-bold text-secondary text-uppercase mb-3 small tracking-wide">
+            Desglose de Documentos
+          </h3>
+
+          <ul class="list-group list-group-flush small">
+            <!-- Archivos Activos -->
+            <li class="list-group-item d-flex justify-content-between align-items-center px-0 py-2">
+              <div class="d-flex align-items-center gap-2">
+                <i class="bi bi-file-earmark-text text-primary fs-6"></i>
+                <span class="text-dark">Archivos activos</span>
+                <span class="badge bg-light text-muted border rounded-pill">{{
+                  storage.activeFilesCount
+                }}</span>
+              </div>
+              <span class="fw-semibold text-dark">{{ formatBytes(storage.usedBytes) }}</span>
+            </li>
+
+            <!-- Archivos en Papelera -->
+            <li class="list-group-item d-flex justify-content-between align-items-center px-0 py-2">
+              <div class="d-flex align-items-center gap-2">
+                <i class="bi bi-trash3 text-danger fs-6"></i>
+                <span class="text-dark">Papelera de reciclaje</span>
+                <span class="badge bg-danger-subtle text-danger border-0 rounded-pill">{{
+                  storage.trashFilesCount
+                }}</span>
+              </div>
+              <span class="fw-semibold text-danger">{{ formatBytes(storage.trashBytes) }}</span>
+            </li>
+
+            <!-- Carpetas Creadas -->
+            <li class="list-group-item d-flex justify-content-between align-items-center px-0 py-2">
+              <div class="d-flex align-items-center gap-2">
+                <i class="bi bi-folder2 text-warning fs-6"></i>
+                <span class="text-dark">Carpetas</span>
+              </div>
+              <span class="badge bg-warning-subtle text-warning-emphasis border-0 rounded-pill">
+                {{ storage.folderCount }}
+              </span>
+            </li>
+          </ul>
+
+          <div
+            class="alert alert-light border small mt-4 mb-0 text-muted d-flex align-items-start gap-2"
+          >
+            <i class="bi bi-info-circle text-primary fs-6 mt-1"></i>
+            <div>
+              Los archivos enviados a la papelera continúan reservando espacio hasta su eliminación
+              definitiva o vaciado de papelera.
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+}

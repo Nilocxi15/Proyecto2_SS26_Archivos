@@ -1,4 +1,4 @@
-const authService = require('../services/authService');
+const authService = require("../services/authService");
 
 /**
  * POST /api/auth/login
@@ -9,10 +9,10 @@ const login = async (req, res, next) => {
     const resultado = await authService.login(email, password);
 
     return res.status(200).json({
-      status: 'success',
-      mensaje: 'Inicio de sesión exitoso',
+      status: "success",
+      mensaje: "Inicio de sesión exitoso",
       token: resultado.token,
-      usuario: resultado.usuario
+      usuario: resultado.usuario,
     });
   } catch (error) {
     next(error);
@@ -27,10 +27,10 @@ const registro = async (req, res, next) => {
     const resultado = await authService.registrarUsuario(req.body);
 
     return res.status(201).json({
-      status: 'success',
-      mensaje: 'Usuario registrado exitosamente',
+      status: "success",
+      mensaje: "Usuario registrado exitosamente",
       token: resultado.token,
-      usuario: resultado.usuario
+      usuario: resultado.usuario,
     });
   } catch (error) {
     next(error);
@@ -42,10 +42,36 @@ const registro = async (req, res, next) => {
  */
 const perfil = async (req, res, next) => {
   try {
-    // req.user fue inyectado por el middleware protegerRuta
+    const userId = req.user._id || req.user.id;
+    const data = await authService.getUserProfile(userId);
+
     return res.status(200).json({
-      status: 'success',
-      usuario: req.user
+      status: "success",
+      usuario: data.usuario,
+      storage: data.storage,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * PUT /api/auth/cambiar-password
+ */
+const cambiarPassword = async (req, res, next) => {
+  try {
+    const userId = req.user._id || req.user.id;
+    const { currentPassword, newPassword } = req.body;
+
+    const resultado = await authService.changePassword(
+      userId,
+      currentPassword,
+      newPassword,
+    );
+
+    return res.status(200).json({
+      status: "success",
+      mensaje: resultado.mensaje,
     });
   } catch (error) {
     next(error);
@@ -55,5 +81,8 @@ const perfil = async (req, res, next) => {
 module.exports = {
   login,
   registro,
-  perfil
+  perfil,
+  getProfile: perfil,
+  cambiarPassword,
+  changePassword: cambiarPassword,
 };

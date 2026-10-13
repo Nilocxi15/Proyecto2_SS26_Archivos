@@ -1,11 +1,44 @@
 export interface Usuario {
   _id: string;
-  nombre: string;
+  name?: string;
+  lastName?: string;
+  nombre?: string;
   email: string;
+  role?: string;
   rol: 'administrador' | 'usuario';
-  estado: 'activo' | 'inactivo';
+  status?: string;
+  estado?: 'activo' | 'inactivo';
+  storageLimitBytes?: number;
   createdAt?: string;
   updatedAt?: string;
+}
+
+export interface StorageStats {
+  usedBytes: number;
+  trashBytes: number;
+  totalUsedBytes: number;
+  limitBytes: number;
+  availableBytes: number;
+  usedPercentage: number;
+  activeFilesCount: number;
+  trashFilesCount: number;
+  folderCount: number;
+}
+
+export interface UserProfileResponse {
+  status: string;
+  usuario: Usuario;
+  storage: StorageStats;
+}
+
+export interface ChangePasswordRequest {
+  currentPassword: string;
+  newPassword: string;
+}
+
+export interface ChangePasswordResponse {
+  status: string;
+  mensaje: string;
 }
 
 /**

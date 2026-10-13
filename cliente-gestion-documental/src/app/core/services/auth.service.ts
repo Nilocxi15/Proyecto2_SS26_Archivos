@@ -3,7 +3,15 @@ import { HttpClient } from '@angular/common/http';
 import { Router } from '@angular/router';
 import { Observable, tap } from 'rxjs';
 import { environment } from '../../../environments/environment';
-import { LoginRequest, LoginResponse, RegistroRequest, Usuario } from '../models/auth.models';
+import {
+  ChangePasswordRequest,
+  ChangePasswordResponse,
+  LoginRequest,
+  LoginResponse,
+  RegistroRequest,
+  UserProfileResponse,
+  Usuario
+} from '../models/auth.models';
 import { Token } from './token';
 
 @Injectable({
@@ -56,10 +64,10 @@ export class AuthService {
   }
 
   /**
-   * Obtiene el perfil actualizado del usuario desde el backend
+   * Obtiene el perfil completo del usuario y sus estadísticas de almacenamiento
    */
-  obtenerPerfil(): Observable<{ status: string; usuario: Usuario }> {
-    return this.http.get<{ status: string; usuario: Usuario }>(`${this.apiUrl}/perfil`).pipe(
+  getProfile(): Observable<UserProfileResponse> {
+    return this.http.get<UserProfileResponse>(`${this.apiUrl}/perfil`).pipe(
       tap((res) => {
         if (res.usuario) {
           this.tokenService.saveUser(res.usuario);
@@ -67,6 +75,20 @@ export class AuthService {
         }
       })
     );
+  }
+
+  /**
+   * Alias de compatibilidad para obtenerPerfil
+   */
+  obtenerPerfil(): Observable<any> {
+    return this.getProfile();
+  }
+
+  /**
+   * Solicita el cambio de contraseña del usuario autenticado
+   */
+  changePassword(data: ChangePasswordRequest): Observable<ChangePasswordResponse> {
+    return this.http.put<ChangePasswordResponse>(`${this.apiUrl}/cambiar-password`, data);
   }
 
   /**

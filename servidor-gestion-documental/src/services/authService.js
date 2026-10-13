@@ -1,6 +1,8 @@
-const jwt = require('jsonwebtoken');
-const User = require('../models/User');
-
+const jwt = require("jsonwebtoken");
+const User = require("../models/User");
+const File = require("../models/File");
+const Folder = require("../models/Folder");
+const mongoose = require("mongoose");
 
 /**
  * Genera un token JWT firmado para el usuario
@@ -9,39 +11,43 @@ const User = require('../models/User');
  * @returns {string} Token JWT
  */
 const generarToken = (userId, rol) => {
-  return jwt.sign(
-    { id: userId, rol },
-    process.env.JWT_SECRET,
-    { expiresIn: process.env.JWT_EXPIRES_IN || '8h' }
-  );
+  return jwt.sign({ id: userId, rol }, process.env.JWT_SECRET, {
+    expiresIn: process.env.JWT_EXPIRES_IN || "8h",
+  });
 };
 
 /**
  * Autentica un usuario con email y contraseña
- * @param {string} email 
- * @param {string} password 
+ * @param {string} email
+ * @param {string} password
  * @returns {Promise<{token: string, usuario: object}>}
  */
 const login = async (email, password) => {
   if (!email || !password) {
-    const error = new Error('Debe ingresar el correo electrónico y la contraseña');
+    const error = new Error(
+      "Debe ingresar el correo electrónico y la contraseña",
+    );
     error.statusCode = 400;
     throw error;
   }
 
   // Buscar usuario incluyendo explícitamente el campo password (+password)
-  const usuario = await User.findOne({ email }).select('+password');
+  const usuario = await User.findOne({ email }).select("+password");
 
   if (!usuario) {
-    const error = new Error('Credenciales inválidas (usuario o contraseña incorrectos)');
+    const error = new Error(
+      "Credenciales inválidas (usuario o contraseña incorrectos)",
+    );
     error.statusCode = 401;
     throw error;
   }
 
   // Regla de negocio: Validar estado activo
   const userStatus = usuario.status || usuario.estado;
-  if (userStatus && userStatus !== 'activo') {
-    const error = new Error('La cuenta se encuentra inactiva. Comuníquese con el administrador del sistema');
+  if (userStatus && userStatus !== "activo") {
+    const error = new Error(
+      "La cuenta se encuentra inactiva. Comuníquese con el administrador del sistema",
+    );
     error.statusCode = 403;
     throw error;
   }
@@ -49,7 +55,9 @@ const login = async (email, password) => {
   // Comparar contraseñas
   const esPasswordValido = await usuario.compararPassword(password);
   if (!esPasswordValido) {
-    const error = new Error('Credenciales inválidas (usuario o contraseña incorrectos)');
+    const error = new Error(
+      "Credenciales inválidas (usuario o contraseña incorrectos)",
+    );
     error.statusCode = 401;
     throw error;
   }
@@ -59,25 +67,27 @@ const login = async (email, password) => {
 
   return {
     token,
-    usuario
+    usuario,
   };
 };
 
 /**
  * Registra un nuevo usuario en el sistema
- * @param {object} datosUsuario 
+ * @param {object} datosUsuario
  * @returns {Promise<{token: string, usuario: object}>}
  */
 const registrarUsuario = async ({ nombre, email, password, rol }) => {
   if (!nombre || !email || !password) {
-    const error = new Error('Nombre, correo electrónico y contraseña son obligatorios');
+    const error = new Error(
+      "Nombre, correo electrónico y contraseña son obligatorios",
+    );
     error.statusCode = 400;
     throw error;
   }
 
   const existeUsuario = await User.findOne({ email });
   if (existeUsuario) {
-    const error = new Error('El correo electrónico ya se encuentra registrado');
+    const error = new Error("El correo electrónico ya se encuentra registrado");
     error.statusCode = 409;
     throw error;
   }
@@ -86,36 +96,148 @@ const registrarUsuario = async ({ nombre, email, password, rol }) => {
     nombre,
     email,
     password,
-    rol: rol || 'usuario',
-    estado: 'activo'
+    rol: rol || "usuario",
+    estado: "activo",
   });
 
   const token = generarToken(nuevoUsuario._id, nuevoUsuario.rol);
 
   return {
     token,
-    usuario: nuevoUsuario
+    usuario: nuevoUsuario,
   };
 };
 
 /**
- * Obtiene la información del usuario por su identificador
- * @param {string} userId 
- * @returns {Promise<object>}
+ * Obtiene la información del usuario por su identificador, incluyendo estadísticas de almacenamiento
+ * @param {string|mongoose.Types.ObjectId} userId
+ * @returns {Promise<{usuario: object, storage: object}>}
  */
-const obtenerPerfilPorId = async (userId) => {
-  const usuario = await User.findById(userId);
+const getUserProfile = async (userId) => {
+  const objectId = new mongoose.Types.ObjectId(userId);
+  const usuario = await User.findById(objectId);
+
   if (!usuario) {
-    const error = new Error('Usuario no encontrado');
+    const error = new Error("Usuario no encontrado");
     error.statusCode = 404;
     throw error;
   }
-  return usuario;
+
+  // Agregación de MongoDB para calcular el almacenamiento ocupado en tiempo real
+  const [activeStorage, trashStorage, folderCount] = await Promise.all([
+    File.aggregate([
+      { $match: { ownerId: objectId, isTrash: false } },
+      {
+        $group: {
+          _id: null,
+          totalBytes: { $sum: "$sizeBytes" },
+          count: { $sum: 1 },
+        },
+      },
+    ]),
+    File.aggregate([
+      { $match: { ownerId: objectId, isTrash: true } },
+      {
+        $group: {
+          _id: null,
+          totalBytes: { $sum: "$sizeBytes" },
+          count: { $sum: 1 },
+        },
+      },
+    ]),
+    Folder.countDocuments({ ownerId: objectId, isTrash: false }),
+  ]);
+
+  const usedBytes = activeStorage.length > 0 ? activeStorage[0].totalBytes : 0;
+  const activeFilesCount =
+    activeStorage.length > 0 ? activeStorage[0].count : 0;
+  const trashBytes = trashStorage.length > 0 ? trashStorage[0].totalBytes : 0;
+  const trashFilesCount = trashStorage.length > 0 ? trashStorage[0].count : 0;
+
+  const limitBytes = usuario.storageLimitBytes || 524288000; // 500 MB por defecto
+  const availableBytes = Math.max(0, limitBytes - (usedBytes + trashBytes));
+  const usedPercentage = Math.min(
+    100,
+    Number((((usedBytes + trashBytes) / limitBytes) * 100).toFixed(1)),
+  );
+
+  return {
+    usuario,
+    storage: {
+      usedBytes,
+      trashBytes,
+      totalUsedBytes: usedBytes + trashBytes,
+      limitBytes,
+      availableBytes,
+      usedPercentage,
+      activeFilesCount,
+      trashFilesCount,
+      folderCount,
+    },
+  };
+};
+
+/**
+ * Permite a un usuario autenticado cambiar su propia contraseña
+ * @param {string|mongoose.Types.ObjectId} userId
+ * @param {string} currentPassword
+ * @param {string} newPassword
+ */
+const changePassword = async (userId, currentPassword, newPassword) => {
+  if (!currentPassword || !newPassword) {
+    const error = new Error(
+      "Debe proporcionar la contraseña actual y la nueva contraseña",
+    );
+    error.statusCode = 400;
+    throw error;
+  }
+
+  if (newPassword.length < 6) {
+    const error = new Error(
+      "La nueva contraseña debe tener al menos 6 caracteres",
+    );
+    error.statusCode = 400;
+    throw error;
+  }
+
+  // Buscar el usuario trayendo el campo oculto password (+password)
+  const usuario = await User.findById(userId).select("+password");
+  if (!usuario) {
+    const error = new Error("Usuario no encontrado");
+    error.statusCode = 404;
+    throw error;
+  }
+
+  // Validar contraseña actual
+  const esPasswordValido = await usuario.compararPassword(currentPassword);
+  if (!esPasswordValido) {
+    const error = new Error("La contraseña actual ingresada es incorrecta");
+    error.statusCode = 400;
+    throw error;
+  }
+
+  if (currentPassword === newPassword) {
+    const error = new Error(
+      "La nueva contraseña no puede ser idéntica a la contraseña actual",
+    );
+    error.statusCode = 400;
+    throw error;
+  }
+
+  // Actualizar contraseña (el middleware pre-save se encargará del hash bcrypt)
+  usuario.password = newPassword;
+  await usuario.save();
+
+  return {
+    mensaje: "Contraseña actualizada exitosamente",
+  };
 };
 
 module.exports = {
   generarToken,
   login,
   registrarUsuario,
-  obtenerPerfilPorId
+  obtenerPerfilPorId: getUserProfile,
+  getUserProfile,
+  changePassword,
 };

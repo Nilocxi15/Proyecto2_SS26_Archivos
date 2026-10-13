@@ -1,5 +1,5 @@
-const mongoose = require('mongoose');
-const bcrypt = require('bcryptjs');
+const mongoose = require("mongoose");
+const bcrypt = require("bcryptjs");
 
 /**
  * Esquema de Usuario para el Sistema de Gestión Documental
@@ -8,61 +8,65 @@ const userSchema = new mongoose.Schema(
   {
     name: {
       type: String,
-      required: [true, 'El nombre completo es obligatorio'],
+      required: [true, "El nombre completo es obligatorio"],
       trim: true,
-      maxlength: [100, 'El nombre no puede exceder los 100 caracteres']
+      maxlength: [100, "El nombre no puede exceder los 100 caracteres"],
     },
     lastName: {
       type: String,
-      required: [true, 'El apellido es obligatorio'],
+      required: [true, "El apellido es obligatorio"],
       trim: true,
-      maxlength: [100, 'El apellido no puede exceder los 100 caracteres']
+      maxlength: [100, "El apellido no puede exceder los 100 caracteres"],
     },
     email: {
       type: String,
-      required: [true, 'El correo electrónico es obligatorio'],
+      required: [true, "El correo electrónico es obligatorio"],
       unique: true,
       lowercase: true,
       trim: true,
       match: [
         /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
-        'Por favor ingrese un correo electrónico válido'
-      ]
+        "Por favor ingrese un correo electrónico válido",
+      ],
     },
     password: {
       type: String,
-      required: [true, 'La contraseña es obligatoria'],
-      minlength: [6, 'La contraseña debe tener al menos 6 caracteres'],
-      select: false // Evita enviar la contraseña en consultas por defecto
+      required: [true, "La contraseña es obligatoria"],
+      minlength: [6, "La contraseña debe tener al menos 6 caracteres"],
+      select: false, // Evita enviar la contraseña en consultas por defecto
     },
     role: {
       type: String,
       enum: {
-        values: ['administrador', 'usuario'],
-        message: 'El rol debe ser administrador o usuario'
+        values: ["administrador", "usuario"],
+        message: "El rol debe ser administrador o usuario",
       },
-      default: 'usuario'
+      default: "usuario",
     },
     status: {
       type: String,
       enum: {
-        values: ['activo', 'inactivo'],
-        message: 'El estado debe ser activo o inactivo'
+        values: ["activo", "inactivo"],
+        message: "El estado debe ser activo o inactivo",
       },
-      default: 'activo'
-    }
+      default: "activo",
+    },
+    storageLimitBytes: {
+      type: Number,
+      default: 524288000, // 500 MB por defecto
+    },
   },
   {
-    timestamps: true // Genera automáticamente createdAt y updatedAt
-  }
+    timestamps: true, // Genera automáticamente createdAt y updatedAt
+  },
 );
 
 /**
  * Hook pre-save: Hashea la contraseña antes de guardarla en la base de datos
  * Solo se ejecuta si el campo 'password' ha sido creado o modificado.
  */
-userSchema.pre('save', async function (next) {
-  if (!this.isModified('password')) {
+userSchema.pre("save", async function (next) {
+  if (!this.isModified("password")) {
     return next();
   }
 
@@ -93,6 +97,6 @@ userSchema.methods.toJSON = function () {
   return userObject;
 };
 
-const User = mongoose.model('User', userSchema);
+const User = mongoose.model("User", userSchema);
 
 module.exports = User;

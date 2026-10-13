@@ -2,7 +2,8 @@ import { Component, computed, inject, input, output } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { AuthService } from '../../../core/services/auth.service';
 
-export type NavSection = 'my-files' | 'shared' | 'trash' | 'users' | 'activity' | 'reports';
+export type NavSection =
+  'my-files' | 'shared' | 'trash' | 'users' | 'activity' | 'reports' | 'profile';
 
 @Component({
   selector: 'app-navbar',
