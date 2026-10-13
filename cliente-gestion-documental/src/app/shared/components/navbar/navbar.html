@@ -100,24 +100,40 @@
             </button>
           </li>
         }
+
+        <!-- Mi perfil -->
+        <li class="nav-item">
+          <button
+            class="nav-link btn btn-link text-decoration-none d-flex align-items-center px-3"
+            [class.active]="activeSection() === 'profile'"
+            (click)="selectSection('profile')"
+          >
+            <i class="bi bi-person-circle me-2"></i>
+            <span>Mi perfil</span>
+          </button>
+        </li>
       </ul>
 
       <!-- Opciones de Usuario a la Derecha -->
       <div class="d-flex align-items-center gap-2 text-white">
-        <!-- Indicador de Perfil y Rol -->
-        <div
-          class="d-flex align-items-center bg-white bg-opacity-10 rounded-pill px-3 py-1 border border-light border-opacity-25"
+        <!-- Indicador de Perfil y Rol (Clickeable para ir a Mi perfil) -->
+        <button
+          type="button"
+          class="btn btn-link text-decoration-none text-white d-flex align-items-center bg-white bg-opacity-10 rounded-pill px-3 py-1 border border-light border-opacity-25"
+          [class.bg-opacity-25]="activeSection() === 'profile'"
+          (click)="selectSection('profile')"
+          title="Ver mi perfil y almacenamiento"
         >
           <i class="bi bi-person-circle me-2 fs-6"></i>
           <span class="fw-medium small text-truncate" style="max-width: 150px">{{
-            currentUser()?.nombre || 'Administrador'
+            currentUser()?.name || currentUser()?.nombre || 'Mi Perfil'
           }}</span>
           @if (isEffectiveAdmin()) {
             <span class="badge bg-warning text-dark ms-2 rounded-pill small fw-bold">Admin</span>
           } @else {
             <span class="badge bg-light text-primary ms-2 rounded-pill small">Usuario</span>
           }
-        </div>
+        </button>
 
         <!-- Botón: Cerrar sesión -->
         <button

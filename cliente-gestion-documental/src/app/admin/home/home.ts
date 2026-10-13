@@ -5,10 +5,19 @@ import { MisArchivos } from '../../shared/components/mis-archivos/mis-archivos';
 import { UserManagement } from '../components/user-management/user-management';
 import { ActivityLog } from '../components/activity-log/activity-log';
 import { SystemReports } from '../components/system-reports/system-reports';
+import { UserProfile } from '../../shared/components/user-profile/user-profile';
 
 @Component({
   selector: 'app-admin-home',
-  imports: [CommonModule, Navbar, MisArchivos, UserManagement, ActivityLog, SystemReports],
+  imports: [
+    CommonModule,
+    Navbar,
+    MisArchivos,
+    UserManagement,
+    ActivityLog,
+    SystemReports,
+    UserProfile,
+  ],
   templateUrl: './home.html',
   styleUrl: './home.css',
 })
