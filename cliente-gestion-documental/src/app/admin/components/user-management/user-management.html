@@ -1,1 +1,664 @@
-<p>user-management works!</p>
+<!-- Notificaciones Temporales -->
+@if (successNotification()) {
+  <div class="alert alert-success alert-dismissible fade show d-flex align-items-center shadow-sm mb-4 border-0" role="alert">
+    <i class="bi bi-check-circle-fill me-2 fs-5"></i>
+    <div>{{ successNotification() }}</div>
+    <button type="button" class="btn-close" aria-label="Cerrar" (click)="successNotification.set(null)"></button>
+  </div>
+}
+
+@if (errorNotification()) {
+  <div class="alert alert-danger alert-dismissible fade show d-flex align-items-center shadow-sm mb-4 border-0" role="alert">
+    <i class="bi bi-exclamation-triangle-fill me-2 fs-5"></i>
+    <div>{{ errorNotification() }}</div>
+    <button type="button" class="btn-close" aria-label="Cerrar" (click)="errorNotification.set(null)"></button>
+  </div>
+}
+
+<!-- Encabezado de la Vista -->
+<header class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-3">
+  <div>
+    <h1 class="h3 fw-bold text-dark mb-1">
+      <i class="bi bi-person-gear me-2 text-primary"></i>Gestión de Usuarios
+    </h1>
+    <p class="text-muted small mb-0">
+      Supervisión general, registro, modificación de privilegios y control de acceso (borrado lógico)
+    </p>
+  </div>
+
+  <div class="d-flex align-items-center gap-2">
+    <button
+      type="button"
+      class="btn btn-primary d-flex align-items-center rounded-pill px-3 py-2 shadow-sm fw-medium"
+      (click)="openCreateModal()"
+    >
+      <i class="bi bi-person-plus-fill me-2 fs-5"></i>
+      <span>Nuevo Usuario</span>
+    </button>
+  </div>
+</header>
+
+<!-- TARJETAS DE MÉTRICAS (KPIs) -->
+<section class="row g-3 mb-4">
+  <!-- Total Usuarios -->
+  <div class="col-12 col-sm-6 col-xl-3">
+    <div class="card border-0 shadow-sm rounded-3 p-3 bg-white h-100">
+      <div class="d-flex align-items-center justify-content-between">
+        <div>
+          <span class="text-muted small fw-semibold text-uppercase">Total Usuarios</span>
+          <h2 class="h4 fw-bold text-dark mb-0 mt-1">5</h2>
+        </div>
+        <div class="kpi-icon-circle bg-primary-subtle text-primary">
+          <i class="bi bi-people-fill fs-5"></i>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Usuarios Activos -->
+  <div class="col-12 col-sm-6 col-xl-3">
+    <div class="card border-0 shadow-sm rounded-3 p-3 bg-white h-100">
+      <div class="d-flex align-items-center justify-content-between">
+        <div>
+          <span class="text-muted small fw-semibold text-uppercase">Cuentas Activas</span>
+          <h2 class="h4 fw-bold text-success mb-0 mt-1">3</h2>
+        </div>
+        <div class="kpi-icon-circle bg-success-subtle text-success">
+          <i class="bi bi-person-check-fill fs-5"></i>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Usuarios Inactivos (Borrado Lógico) -->
+  <div class="col-12 col-sm-6 col-xl-3">
+    <div class="card border-0 shadow-sm rounded-3 p-3 bg-white h-100">
+      <div class="d-flex align-items-center justify-content-between">
+        <div>
+          <span class="text-muted small fw-semibold text-uppercase">Inactivos</span>
+          <h2 class="h4 fw-bold text-danger mb-0 mt-1">2</h2>
+        </div>
+        <div class="kpi-icon-circle bg-danger-subtle text-danger">
+          <i class="bi bi-person-dash-fill fs-5"></i>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Administradores -->
+  <div class="col-12 col-sm-6 col-xl-3">
+    <div class="card border-0 shadow-sm rounded-3 p-3 bg-white h-100">
+      <div class="d-flex align-items-center justify-content-between">
+        <div>
+          <span class="text-muted small fw-semibold text-uppercase">Administradores</span>
+          <h2 class="h4 fw-bold text-warning-emphasis mb-0 mt-1">1</h2>
+        </div>
+        <div class="kpi-icon-circle bg-warning-subtle text-warning-emphasis">
+          <i class="bi bi-shield-shaded fs-5"></i>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- BARRA DE BÚSQUEDA Y FILTROS -->
+<section class="card border-0 shadow-sm rounded-3 p-3 mb-4 bg-white">
+  <div class="row g-3 align-items-center">
+    <!-- Buscador por Texto -->
+    <div class="col-12 col-md-5">
+      <div class="input-group">
+        <span class="input-group-text bg-light border-end-0 text-muted">
+          <i class="bi bi-search"></i>
+        </span>
+        <input
+          type="text"
+          class="form-control border-start-0 bg-light"
+          placeholder="Buscar por nombre, apellido o correo..."
+          [ngModel]="searchTerm()"
+          (ngModelChange)="searchTerm.set($event)"
+        />
+        @if (searchTerm()) {
+          <button class="btn btn-light border-start-0 text-muted" type="button" (click)="searchTerm.set('')">
+            <i class="bi bi-x-lg small"></i>
+          </button>
+        }
+      </div>
+    </div>
+
+    <!-- Filtro por Rol -->
+    <div class="col-6 col-md-2">
+      <div class="input-group">
+        <span class="input-group-text bg-light text-muted small">
+          <i class="bi bi-person-gear"></i>
+        </span>
+        <select
+          class="form-select bg-light small"
+          [ngModel]="roleFilter()"
+          (ngModelChange)="roleFilter.set($event)"
+        >
+          <option value="all">Todos los roles</option>
+          <option value="administrador">Administradores</option>
+          <option value="usuario">Usuarios Estándar</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- Filtro por Estado -->
+    <div class="col-6 col-md-2">
+      <div class="input-group">
+        <span class="input-group-text bg-light text-muted small">
+          <i class="bi bi-activity"></i>
+        </span>
+        <select
+          class="form-select bg-light small"
+          [ngModel]="statusFilter()"
+          (ngModelChange)="statusFilter.set($event)"
+        >
+          <option value="all">Todos los estados</option>
+          <option value="activo">Solo Activos</option>
+          <option value="inactivo">Solo Inactivos</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- Ordenamiento -->
+    <div class="col-12 col-md-3">
+      <div class="input-group">
+        <span class="input-group-text bg-light text-muted small">
+          <i class="bi bi-sort-down"></i>
+        </span>
+        <select
+          class="form-select bg-light small"
+          [ngModel]="sortBy()"
+          (ngModelChange)="sortBy.set($event)"
+        >
+          <option value="name">Por Nombre (A-Z)</option>
+          <option value="date">Por Fecha de Registro</option>
+          <option value="storage">Por Capacidad de Almacenamiento</option>
+        </select>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- TABLA DE USUARIOS -->
+<section class="card border-0 shadow-sm rounded-3 bg-white overflow-hidden mb-4">
+  @if (false) {
+    <div class="table-responsive">
+      <table class="table table-hover align-middle mb-0">
+        <thead class="table-light text-secondary small text-uppercase">
+          <tr>
+            <th scope="col" class="ps-3 py-3">Usuario</th>
+            <th scope="col">Rol</th>
+            <th scope="col">Estado</th>
+            <th scope="col">Límite Almacenamiento</th>
+            <th scope="col">Registro</th>
+            <th scope="col" class="text-end pe-3">Acciones</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (user of targetUser() ? [targetUser()!] : []; track user._id) {
+            <tr [class.table-light]="user.status === 'inactivo'">
+              <!-- Columna Usuario -->
+              <td class="ps-3">
+                <div class="d-flex align-items-center gap-3">
+                  <div
+                    class="user-avatar-circle fw-bold small d-flex align-items-center justify-content-center"
+                    [class.bg-primary-subtle]="user.status === 'activo'"
+                    [class.text-primary]="user.status === 'activo'"
+                    [class.bg-secondary-subtle]="user.status === 'inactivo'"
+                    [class.text-secondary]="user.status === 'inactivo'"
+                  >
+                    {{ getInitials(user.name, user.lastName) }}
+                  </div>
+                  <div>
+                    <div class="fw-semibold text-dark">
+                      {{ user.name }} {{ user.lastName }}
+                      @if (user._id === currentUser()?._id) {
+                        <span class="badge bg-light text-primary border ms-1 small">Tú</span>
+                      }
+                    </div>
+                    <div class="text-muted small font-monospace">{{ user.email }}</div>
+                  </div>
+                </div>
+              </td>
+
+              <!-- Columna Rol -->
+              <td>
+                @if (user.role === 'administrador') {
+                  <span class="badge bg-warning text-dark rounded-pill fw-bold">
+                    <i class="bi bi-shield-shaded me-1"></i>Admin
+                  </span>
+                } @else {
+                  <span class="badge bg-primary-subtle text-primary-emphasis rounded-pill">
+                    <i class="bi bi-person me-1"></i>Usuario
+                  </span>
+                }
+              </td>
+
+              <!-- Columna Estado (Borrado Lógico) -->
+              <td>
+                @if (user.status === 'activo') {
+                  <span class="badge bg-success-subtle text-success-emphasis rounded-pill">
+                    <i class="bi bi-check-circle-fill me-1"></i>Activo
+                  </span>
+                } @else {
+                  <span class="badge bg-danger-subtle text-danger-emphasis rounded-pill">
+                    <i class="bi bi-dash-circle-fill me-1"></i>Inactivo (Borrado Lógico)
+                  </span>
+                }
+              </td>
+
+              <!-- Columna Almacenamiento -->
+              <td>
+                <span class="badge bg-light text-secondary border">
+                  <i class="bi bi-hdd-fill me-1 text-muted"></i>{{ formatStorage(user.storageLimitBytes) }}
+                </span>
+              </td>
+
+              <!-- Columna Registro -->
+              <td class="text-muted small">
+                {{ formatDate(user.createdAt) }}
+              </td>
+
+              <!-- Columna Acciones CRUD -->
+              <td class="text-end pe-3">
+                <div class="btn-group btn-group-sm" role="group">
+                  <!-- Editar -->
+                  <button
+                    type="button"
+                    class="btn btn-outline-secondary"
+                    (click)="openEditModal(user)"
+                    title="Editar usuario"
+                  >
+                    <i class="bi bi-pencil-square"></i>
+                  </button>
+
+                  <!-- Borrado Lógico: Desactivar / Reactivar -->
+                  @if (user.status === 'activo') {
+                    <button
+                      type="button"
+                      class="btn btn-outline-danger"
+                      (click)="openDeleteModal(user)"
+                      [disabled]="user._id === currentUser()?._id"
+                      title="Desactivar cuenta (Borrado Lógico)"
+                    >
+                      <i class="bi bi-person-x-fill"></i>
+                    </button>
+                  } @else {
+                    <button
+                      type="button"
+                      class="btn btn-outline-success"
+                      (click)="openDeleteModal(user)"
+                      title="Reactivar cuenta de usuario"
+                    >
+                      <i class="bi bi-arrow-counterclockwise"></i>
+                    </button>
+                  }
+                </div>
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  } @else {
+    <!-- Estado Vacío -->
+    <div class="p-5 text-center">
+      <div class="mb-3">
+        <i class="bi bi-person-slash text-muted display-4"></i>
+      </div>
+      <h3 class="h5 fw-bold text-dark mb-2">No se encontraron usuarios</h3>
+      <p class="text-muted small mb-4 mx-auto" style="max-width: 450px;">
+        @if (searchTerm() || roleFilter() !== 'all' || statusFilter() !== 'all') {
+          No existen resultados que coincidan con los criterios de búsqueda y filtros seleccionados.
+        } @else {
+          Aún no se han registrado colaboradores en el sistema. Utiliza el botón "Nuevo Usuario" para comenzar.
+        }
+      </p>
+      @if (searchTerm() || roleFilter() !== 'all' || statusFilter() !== 'all') {
+        <button
+          type="button"
+          class="btn btn-outline-secondary btn-sm rounded-pill px-3"
+          (click)="searchTerm.set(''); roleFilter.set('all'); statusFilter.set('all')"
+        >
+          <i class="bi bi-arrow-clockwise me-1"></i> Restablecer Filtros
+        </button>
+      }
+    </div>
+  }
+</section>
+
+<!-- MODAL: REGISTRAR NUEVO USUARIO (CREATE) -->
+@if (isCreateModalVisible()) {
+  <div class="modal fade show d-block background-modal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content border-0 shadow-lg rounded-3">
+        <div class="modal-header border-bottom py-3">
+          <div class="d-flex align-items-center gap-2">
+            <i class="bi bi-person-plus text-primary fs-4"></i>
+            <h5 class="modal-title h6 fw-bold mb-0">Registrar Nuevo Usuario</h5>
+          </div>
+          <button type="button" class="btn-close" aria-label="Cerrar" (click)="closeCreateModal()"></button>
+        </div>
+
+        <div class="modal-body p-4">
+          @if (createError()) {
+            <div class="alert alert-danger py-2 px-3 small border-0 mb-3" role="alert">
+              <i class="bi bi-exclamation-circle me-1"></i> {{ createError() }}
+            </div>
+          }
+
+          <div class="row g-3">
+            <!-- Nombre -->
+            <div class="col-12 col-sm-6">
+              <label for="createNameInput" class="form-label small fw-semibold text-secondary">
+                Nombre
+              </label>
+              <input
+                id="createNameInput"
+                type="text"
+                class="form-control"
+                placeholder="Ej. Roberto"
+                [ngModel]="createName()"
+                (ngModelChange)="createName.set($event)"
+                autofocus
+              />
+            </div>
+
+            <!-- Apellido -->
+            <div class="col-12 col-sm-6">
+              <label for="createLastNameInput" class="form-label small fw-semibold text-secondary">
+                Apellido
+              </label>
+              <input
+                id="createLastNameInput"
+                type="text"
+                class="form-control"
+                placeholder="Ej. Castillo"
+                [ngModel]="createLastName()"
+                (ngModelChange)="createLastName.set($event)"
+              />
+            </div>
+
+            <!-- Correo Electrónico -->
+            <div class="col-12">
+              <label for="createEmailInput" class="form-label small fw-semibold text-secondary">
+                Correo electrónico
+              </label>
+              <input
+                id="createEmailInput"
+                type="email"
+                class="form-control"
+                placeholder="rcastillo@organizacion.com"
+                [ngModel]="createEmail()"
+                (ngModelChange)="createEmail.set($event)"
+              />
+            </div>
+
+            <!-- Contraseña Inicial -->
+            <div class="col-12">
+              <label for="createPasswordInput" class="form-label small fw-semibold text-secondary">
+                Contraseña temporal inicial
+              </label>
+              <input
+                id="createPasswordInput"
+                type="password"
+                class="form-control"
+                placeholder="Mínimo 6 caracteres"
+                [ngModel]="createPassword()"
+                (ngModelChange)="createPassword.set($event)"
+              />
+              <div class="form-text small">El usuario podrá modificarla desde su perfil.</div>
+            </div>
+
+            <!-- Rol -->
+            <div class="col-12 col-sm-6">
+              <label for="createRoleSelect" class="form-label small fw-semibold text-secondary">
+                Rol del sistema
+              </label>
+              <select
+                id="createRoleSelect"
+                class="form-select"
+                [ngModel]="createRole()"
+                (ngModelChange)="createRole.set($event)"
+              >
+                <option value="usuario">Usuario Estándar</option>
+                <option value="administrador">Administrador</option>
+              </select>
+            </div>
+
+            <!-- Cuota de Almacenamiento -->
+            <div class="col-12 col-sm-6">
+              <label for="createStorageSelect" class="form-label small fw-semibold text-secondary">
+                Límite de Almacenamiento
+              </label>
+              <select
+                id="createStorageSelect"
+                class="form-select"
+                [ngModel]="createStorageMb()"
+                (ngModelChange)="createStorageMb.set(+$event)"
+              >
+                <option [value]="500">500 MB (Estándar)</option>
+                <option [value]="1024">1 GB (Recomendado)</option>
+                <option [value]="2048">2 GB</option>
+                <option [value]="5120">5 GB (Avanzado)</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <div class="modal-footer border-top py-2">
+          <button type="button" class="btn btn-light btn-sm rounded-pill px-3" (click)="closeCreateModal()">
+            Cancelar
+          </button>
+          <button type="button" class="btn btn-primary btn-sm rounded-pill px-3" (click)="confirmCreateUser()">
+            <i class="bi bi-check-lg me-1"></i> Guardar Usuario
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+}
+
+<!-- MODAL: EDITAR USUARIO (UPDATE) -->
+@if (isEditModalVisible()) {
+  <div class="modal fade show d-block background-modal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content border-0 shadow-lg rounded-3">
+        <div class="modal-header border-bottom py-3">
+          <div class="d-flex align-items-center gap-2">
+            <i class="bi bi-pencil-square text-primary fs-4"></i>
+            <h5 class="modal-title h6 fw-bold mb-0">Editar Usuario</h5>
+          </div>
+          <button type="button" class="btn-close" aria-label="Cerrar" (click)="closeEditModal()"></button>
+        </div>
+
+        <div class="modal-body p-4">
+          @if (editError()) {
+            <div class="alert alert-danger py-2 px-3 small border-0 mb-3" role="alert">
+              <i class="bi bi-exclamation-circle me-1"></i> {{ editError() }}
+            </div>
+          }
+
+          <div class="row g-3">
+            <!-- Correo (Solo Lectura) -->
+            <div class="col-12">
+              <label class="form-label small fw-semibold text-secondary">
+                Correo electrónico (Identificador)
+              </label>
+              <input type="text" class="form-control bg-light" [value]="editEmail()" disabled />
+            </div>
+
+            <!-- Nombre -->
+            <div class="col-12 col-sm-6">
+              <label for="editNameInput" class="form-label small fw-semibold text-secondary">
+                Nombre
+              </label>
+              <input
+                id="editNameInput"
+                type="text"
+                class="form-control"
+                [ngModel]="editName()"
+                (ngModelChange)="editName.set($event)"
+              />
+            </div>
+
+            <!-- Apellido -->
+            <div class="col-12 col-sm-6">
+              <label for="editLastNameInput" class="form-label small fw-semibold text-secondary">
+                Apellido
+              </label>
+              <input
+                id="editLastNameInput"
+                type="text"
+                class="form-control"
+                [ngModel]="editLastName()"
+                (ngModelChange)="editLastName.set($event)"
+              />
+            </div>
+
+            <!-- Rol -->
+            <div class="col-12 col-sm-6">
+              <label for="editRoleSelect" class="form-label small fw-semibold text-secondary">
+                Rol del sistema
+              </label>
+              <select
+                id="editRoleSelect"
+                class="form-select"
+                [ngModel]="editRole()"
+                (ngModelChange)="editRole.set($event)"
+              >
+                <option value="usuario">Usuario Estándar</option>
+                <option value="administrador">Administrador</option>
+              </select>
+            </div>
+
+            <!-- Estado -->
+            <div class="col-12 col-sm-6">
+              <label for="editStatusSelect" class="form-label small fw-semibold text-secondary">
+                Estado de la cuenta
+              </label>
+              <select
+                id="editStatusSelect"
+                class="form-select"
+                [ngModel]="editStatus()"
+                (ngModelChange)="editStatus.set($event)"
+              >
+                <option value="activo">Activo</option>
+                <option value="inactivo">Inactivo (Borrado Lógico)</option>
+              </select>
+            </div>
+
+            <!-- Cuota de Almacenamiento -->
+            <div class="col-12">
+              <label for="editStorageSelect" class="form-label small fw-semibold text-secondary">
+                Límite de Almacenamiento
+              </label>
+              <select
+                id="editStorageSelect"
+                class="form-select"
+                [ngModel]="editStorageMb()"
+                (ngModelChange)="editStorageMb.set(+$event)"
+              >
+                <option [value]="500">500 MB</option>
+                <option [value]="1024">1 GB</option>
+                <option [value]="2048">2 GB</option>
+                <option [value]="5120">5 GB</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <div class="modal-footer border-top py-2">
+          <button type="button" class="btn btn-light btn-sm rounded-pill px-3" (click)="closeEditModal()">
+            Cancelar
+          </button>
+          <button type="button" class="btn btn-primary btn-sm rounded-pill px-3" (click)="confirmEditUser()">
+            <i class="bi bi-check-lg me-1"></i> Guardar Cambios
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+}
+
+<!-- MODAL: CONFIRMACIÓN DE BORRADO LÓGICO / ESTADO (DELETE) -->
+@if (isDeleteModalVisible() && targetUser()) {
+  @let user = targetUser()!;
+  @let isDeactivating = user.status === 'activo';
+
+  <div class="modal fade show d-block background-modal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content border-0 shadow-lg rounded-3">
+        <div class="modal-header border-bottom py-3">
+          <div class="d-flex align-items-center gap-2">
+            @if (isDeactivating) {
+              <i class="bi bi-person-x text-danger fs-4"></i>
+              <h5 class="modal-title h6 fw-bold mb-0 text-danger">Confirmar Borrado Lógico</h5>
+            } @else {
+              <i class="bi bi-arrow-counterclockwise text-success fs-4"></i>
+              <h5 class="modal-title h6 fw-bold mb-0 text-success">Confirmar Reactivación</h5>
+            }
+          </div>
+          <button type="button" class="btn-close" aria-label="Cerrar" (click)="closeDeleteModal()"></button>
+        </div>
+
+        <div class="modal-body p-4">
+          @if (isDeactivating) {
+            <div class="text-center mb-3">
+              <div class="mx-auto text-danger mb-2">
+                <i class="bi bi-exclamation-triangle-fill display-5"></i>
+              </div>
+              <h3 class="h6 fw-bold text-dark mb-1">
+                ¿Deseas desactivar la cuenta de {{ user.name }} {{ user.lastName }}?
+              </h3>
+              <p class="text-muted small mb-0 font-monospace">{{ user.email }}</p>
+            </div>
+
+            <div class="alert alert-light border small text-muted d-flex align-items-start gap-2 mb-0">
+              <i class="bi bi-shield-check text-primary fs-5 mt-1"></i>
+              <div>
+                <strong>Garantía de Borrado Lógico:</strong> La cuenta pasará a estado <code>inactivo</code> y el usuario no podrá iniciar sesión.
+                <strong>Sus documentos, carpetas e historial no serán eliminados</strong> de la base de datos y la cuenta podrá reactivarse cuando sea necesario.
+              </div>
+            </div>
+          } @else {
+            <div class="text-center mb-3">
+              <div class="mx-auto text-success mb-2">
+                <i class="bi bi-check-circle-fill display-5"></i>
+              </div>
+              <h3 class="h6 fw-bold text-dark mb-1">
+                ¿Deseas reactivar la cuenta de {{ user.name }} {{ user.lastName }}?
+              </h3>
+              <p class="text-muted small mb-0 font-monospace">{{ user.email }}</p>
+            </div>
+
+            <p class="text-muted small text-center mb-0">
+              El colaborador volverá a tener acceso inmediato a la plataforma con su rol y documentos previos.
+            </p>
+          }
+        </div>
+
+        <div class="modal-footer border-top py-2">
+          <button type="button" class="btn btn-light btn-sm rounded-pill px-3" (click)="closeDeleteModal()">
+            Cancelar
+          </button>
+          <button
+            type="button"
+            class="btn btn-sm rounded-pill px-3"
+            [class.btn-danger]="isDeactivating"
+            [class.btn-success]="!isDeactivating"
+            (click)="confirmToggleStatus()"
+          >
+            @if (isDeactivating) {
+              <i class="bi bi-person-x-fill me-1"></i> Desactivar Usuario
+            } @else {
+              <i class="bi bi-check2-circle me-1"></i> Reactivar Usuario
+            }
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+}
