@@ -37,7 +37,7 @@ const protectRoutes = async (req, res, next) => {
     }
 
     // Validar regla de negocio: Si el usuario fue desactivado, rechazar la petición
-    const userStatus = usuario.status || usuario.estado;
+    const userStatus = usuario.status;
     if (userStatus && userStatus !== 'activo') {
       return res.status(403).json({
         status: 'error',
@@ -62,7 +62,7 @@ const protectRoutes = async (req, res, next) => {
  */
 const allowRoles = (...rolesPermitidos) => {
   return (req, res, next) => {
-    const userRole = req.user?.role || req.user?.rol;
+    const userRole = req.user?.role;
     if (!req.user || !rolesPermitidos.includes(userRole)) {
       return res.status(403).json({
         status: 'error',

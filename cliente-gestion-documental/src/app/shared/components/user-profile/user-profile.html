@@ -1,19 +1,3 @@
-<!-- Encabezado de la Vista -->
-<header class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-3">
-  <div class="d-flex align-items-center gap-2">
-    <button
-      type="button"
-      class="btn btn-outline-secondary d-flex align-items-center rounded-pill px-3 py-2 shadow-sm fw-medium btn-sm"
-      (click)="loadProfileData()"
-      [disabled]="isLoading()"
-      title="Recargar información"
-    >
-      <i class="bi bi-arrow-clockwise me-1" [class.spin-animation]="isLoading()"></i>
-      <span>Actualizar</span>
-    </button>
-  </div>
-</header>
-
 <!-- Alerta de Error de Carga -->
 @if (loadError()) {
   <div
@@ -58,11 +42,12 @@
           </div>
           <span
             class="badge"
-            [class.bg-success-subtle]="user.status === 'activo' || user.estado === 'activo'"
-            [class.text-success-emphasis]="user.status === 'activo' || user.estado === 'activo'"
+            [class.bg-success-subtle]="user.status === 'activo'"
+            [class.text-success-emphasis]="user.status === 'activo'"
+            [class.bg-danger-subtle]="user.status === 'inactivo'"
+            [class.text-danger-emphasis]="user.status === 'inactivo'"
           >
-            <i class="bi bi-check-circle-fill me-1"></i
-            >{{ user.status || user.estado || 'activo' | uppercase }}
+            {{ user.status | uppercase }}
           </span>
         </div>
 
@@ -74,24 +59,18 @@
               <i class="bi bi-person-fill fs-1"></i>
             </div>
             <div>
-              <h3 class="h5 fw-bold text-dark mb-1">
-                {{ user.name || user.nombre || 'Usuario' }} {{ user.lastName || '' }}
-              </h3>
+              <h3 class="h5 fw-bold text-dark mb-1">{{ user.name }} {{ user.lastName }}</h3>
               <p class="text-muted small mb-1">
                 {{ user.email }}
               </p>
               <div>
-                @if (
-                  user.role === 'administrador' ||
-                  user.role === 'admin' ||
-                  user.rol === 'administrador'
-                ) {
+                @if (user.role === 'admin') {
                   <span class="badge bg-warning text-dark fw-bold rounded-pill">
-                    <i class="bi bi-shield-shaded me-1"></i>Administrador del Sistema
+                    Administrador
                   </span>
                 } @else {
                   <span class="badge bg-primary-subtle text-primary-emphasis rounded-pill">
-                    <i class="bi bi-person me-1"></i>Usuario Estándar
+                    Usuario Regular
                   </span>
                 }
               </div>
@@ -100,16 +79,14 @@
 
           <dl class="row mb-0 small">
             <dt class="col-sm-4 text-muted mb-2">Nombre completo:</dt>
-            <dd class="col-sm-8 fw-semibold text-dark mb-2">
-              {{ user.name || user.nombre || 'No registrado' }} {{ user.lastName || '' }}
-            </dd>
+            <dd class="col-sm-8 fw-semibold text-dark mb-2">{{ user.name }} {{ user.lastName }}</dd>
 
             <dt class="col-sm-4 text-muted mb-2">Correo electrónico:</dt>
             <dd class="col-sm-8 text-dark mb-2 font-monospace">{{ user.email }}</dd>
 
             <dt class="col-sm-4 text-muted mb-2">Rol asignado:</dt>
             <dd class="col-sm-8 text-dark mb-2 text-capitalize">
-              {{ user.role || user.rol || 'usuario' }}
+              {{ user.role === 'admin' ? 'Administrador' : 'Usuario regular' }}
             </dd>
 
             <dt class="col-sm-4 text-muted mb-2">Fecha de registro:</dt>
@@ -309,7 +286,6 @@
           class="card-header bg-white border-bottom py-3 px-4 d-flex align-items-center justify-content-between"
         >
           <div class="d-flex align-items-center gap-2">
-            <i class="bi bi-hdd-network text-primary fs-5"></i>
             <h2 class="h6 fw-bold mb-0 text-dark">Espacio de Almacenamiento</h2>
           </div>
           <span class="badge bg-light text-secondary border">
@@ -344,8 +320,7 @@
             <div class="d-flex justify-content-between text-muted small mt-2">
               <span>0 B</span>
               <span class="fw-medium text-success">
-                <i class="bi bi-check2 me-1"></i
-                >{{ formatBytes(storage.availableBytes) }} disponibles
+                {{ formatBytes(storage.availableBytes) }} disponibles
               </span>
               <span>{{ formatBytes(storage.limitBytes) }}</span>
             </div>
@@ -357,7 +332,6 @@
             <div class="col-6">
               <div class="p-3 bg-light rounded-3 border-0">
                 <div class="d-flex align-items-center gap-2 mb-1">
-                  <i class="bi bi-cloud-arrow-up text-primary fs-5"></i>
                   <span class="text-muted small fw-semibold">Utilizado</span>
                 </div>
                 <div class="fw-bold text-dark fs-6">{{ formatBytes(storage.totalUsedBytes) }}</div>
@@ -368,7 +342,6 @@
             <div class="col-6">
               <div class="p-3 bg-success-subtle rounded-3 border-0">
                 <div class="d-flex align-items-center gap-2 mb-1">
-                  <i class="bi bi-shield-check text-success fs-5"></i>
                   <span class="text-success-emphasis small fw-semibold">Disponible</span>
                 </div>
                 <div class="fw-bold text-success-emphasis fs-6">

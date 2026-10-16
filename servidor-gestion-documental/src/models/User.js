@@ -38,8 +38,8 @@ const userSchema = new mongoose.Schema(
     role: {
       type: String,
       enum: {
-        values: ["administrador", "usuario"],
-        message: "El rol debe ser administrador o usuario",
+        values: ["admin", "usuario"],
+        message: "El rol debe ser admin o usuario",
       },
       default: "usuario",
     },
@@ -65,18 +65,13 @@ const userSchema = new mongoose.Schema(
  * Hook pre-save: Hashea la contraseña antes de guardarla en la base de datos
  * Solo se ejecuta si el campo 'password' ha sido creado o modificado.
  */
-userSchema.pre("save", async function (next) {
+userSchema.pre("save", async function () {
   if (!this.isModified("password")) {
-    return next();
+    return;
   }
 
-  try {
-    const salt = await bcrypt.genSalt(12);
-    this.password = await bcrypt.hash(this.password, salt);
-    next();
-  } catch (error) {
-    next(error);
-  }
+  const salt = await bcrypt.genSalt(12);
+  this.password = await bcrypt.hash(this.password, salt);
 });
 
 /**

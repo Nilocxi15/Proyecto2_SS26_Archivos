@@ -1,14 +1,11 @@
 export interface Usuario {
   _id: string;
-  name?: string;
-  lastName?: string;
-  nombre?: string;
+  name: string;
+  lastName: string;
   email: string;
-  role?: string;
-  rol: 'administrador' | 'usuario';
-  status?: string;
-  estado?: 'activo' | 'inactivo';
-  storageLimitBytes?: number;
+  role: 'admin' | 'usuario';
+  status: 'activo' | 'inactivo';
+  storageLimitBytes: number;
   createdAt?: string;
   updatedAt?: string;
 }
@@ -63,8 +60,9 @@ export interface LoginResponse {
  * Petición para registrar un nuevo usuario
  */
 export interface RegistroRequest {
-  nombre: string;
+  name: string;
+  lastName?: string;
   email: string;
   password: string;
-  rol?: 'administrador' | 'usuario';
+  role?: 'admin' | 'usuario';
 }

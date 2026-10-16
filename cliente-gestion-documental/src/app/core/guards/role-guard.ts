@@ -1,6 +1,6 @@
 import { inject } from '@angular/core';
 import { CanActivateFn, Router } from '@angular/router';
-import { Token } from '../services/token';
+import { Token } from '../services/token.service';
 
 /**
  * Guard de protección de rutas basado en roles (RBAC)

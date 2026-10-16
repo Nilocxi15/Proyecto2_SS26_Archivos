@@ -7,12 +7,12 @@ const mongoose = require("mongoose");
 /**
  * Genera un token JWT firmado para el usuario
  * @param {string} userId - ID del usuario en MongoDB
- * @param {string} rol - Rol del usuario
+ * @param {string} role - Rol del usuario ('admin' o 'usuario')
  * @returns {string} Token JWT
  */
-const generarToken = (userId, rol) => {
-  return jwt.sign({ id: userId, rol }, process.env.JWT_SECRET, {
-    expiresIn: process.env.JWT_EXPIRES_IN || "1h",
+const generarToken = (userId, role) => {
+  return jwt.sign({ id: userId, role }, process.env.JWT_SECRET, {
+    expiresIn: process.env.JWT_EXPIRES_IN || '1h',
   });
 };
 
@@ -25,28 +25,28 @@ const generarToken = (userId, rol) => {
 const login = async (email, password) => {
   if (!email || !password) {
     const error = new Error(
-      "Debe ingresar el correo electrónico y la contraseña",
+      'Debe ingresar el correo electrónico y la contraseña',
     );
     error.statusCode = 400;
     throw error;
   }
 
   // Buscar usuario incluyendo explícitamente el campo password (+password)
-  const usuario = await User.findOne({ email }).select("+password");
+  const usuario = await User.findOne({ email }).select('+password');
 
   if (!usuario) {
     const error = new Error(
-      "Credenciales inválidas (usuario o contraseña incorrectos)",
+      'Credenciales inválidas (usuario o contraseña incorrectos)',
     );
     error.statusCode = 401;
     throw error;
   }
 
   // Regla de negocio: Validar estado activo
-  const userStatus = usuario.status || usuario.estado;
-  if (userStatus && userStatus !== "activo") {
+  const userStatus = usuario.status;
+  if (userStatus && userStatus !== 'activo') {
     const error = new Error(
-      "La cuenta se encuentra inactiva. Comuníquese con el administrador del sistema",
+      'La cuenta se encuentra inactiva. Comuníquese con el administrador del sistema',
     );
     error.statusCode = 403;
     throw error;
@@ -56,13 +56,13 @@ const login = async (email, password) => {
   const esPasswordValido = await usuario.compararPassword(password);
   if (!esPasswordValido) {
     const error = new Error(
-      "Credenciales inválidas (usuario o contraseña incorrectos)",
+      'Credenciales inválidas (usuario o contraseña incorrectos)',
     );
     error.statusCode = 401;
     throw error;
   }
 
-  const userRole = usuario.role || usuario.rol;
+  const userRole = usuario.role;
   const token = generarToken(usuario._id, userRole);
 
   return {
@@ -76,31 +76,37 @@ const login = async (email, password) => {
  * @param {object} datosUsuario
  * @returns {Promise<{token: string, usuario: object}>}
  */
-const registrarUsuario = async ({ nombre, email, password, rol }) => {
-  if (!nombre || !email || !password) {
+const registrarUsuario = async ({ name, lastName, nombre, email, password, role, rol }) => {
+  const finalName = (name || nombre || '').trim();
+  const finalLastName = (lastName || '').trim();
+  const finalRole = role || rol || 'usuario';
+
+  if (!finalName || !email || !password) {
     const error = new Error(
-      "Nombre, correo electrónico y contraseña son obligatorios",
+      'Nombre, correo electrónico y contraseña son obligatorios',
     );
     error.statusCode = 400;
     throw error;
   }
 
-  const existeUsuario = await User.findOne({ email });
+  const cleanEmail = email.trim().toLowerCase();
+  const existeUsuario = await User.findOne({ email: cleanEmail });
   if (existeUsuario) {
-    const error = new Error("El correo electrónico ya se encuentra registrado");
+    const error = new Error('El correo electrónico ya se encuentra registrado');
     error.statusCode = 409;
     throw error;
   }
 
   const nuevoUsuario = await User.create({
-    nombre,
-    email,
+    name: finalName,
+    lastName: finalLastName,
+    email: cleanEmail,
     password,
-    rol: rol || "usuario",
-    estado: "activo",
+    role: finalRole === 'admin' ? 'admin' : 'usuario',
+    status: 'activo',
   });
 
-  const token = generarToken(nuevoUsuario._id, nuevoUsuario.rol);
+  const token = generarToken(nuevoUsuario._id, nuevoUsuario.role);
 
   return {
     token,

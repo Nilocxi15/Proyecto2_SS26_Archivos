@@ -6,7 +6,7 @@ export interface ManagedUser {
   name: string;
   lastName: string;
   email: string;
-  role: 'administrador' | 'usuario';
+  role: 'admin' | 'usuario';
   status: 'activo' | 'inactivo';
   storageLimitBytes: number;
   createdAt: string;
@@ -21,7 +21,7 @@ export interface CreateUserDto {
   lastName: string;
   email: string;
   password?: string;
-  role: 'administrador' | 'usuario';
+  role: 'admin' | 'usuario';
   storageLimitBytes: number;
 }
 
@@ -31,7 +31,7 @@ export interface CreateUserDto {
 export interface UpdateUserDto {
   name: string;
   lastName: string;
-  role: 'administrador' | 'usuario';
+  role: 'admin' | 'usuario';
   storageLimitBytes: number;
   status?: 'activo' | 'inactivo';
 }

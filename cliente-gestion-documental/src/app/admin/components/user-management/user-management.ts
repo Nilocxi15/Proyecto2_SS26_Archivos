@@ -1,8 +1,8 @@
-import { Component, computed, inject, signal } from '@angular/core';
+import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { UserManagementService } from '../../services/user-management.service';
-import { ManagedUser } from '../../models/user-management.models';
+import { UserManagementService } from '../../../core/services/user-management.service';
+import { ManagedUser } from '../../../core/models/user-management.models';
 import { AuthService } from '../../../core/services/auth.service';
 
 @Component({
@@ -11,7 +11,7 @@ import { AuthService } from '../../../core/services/auth.service';
   templateUrl: './user-management.html',
   styleUrl: './user-management.css',
 })
-export class UserManagement {
+export class UserManagement implements OnInit {
   readonly userService = inject(UserManagementService);
   private readonly authService = inject(AuthService);
 
@@ -19,7 +19,7 @@ export class UserManagement {
 
   // Filtros y Búsqueda
   readonly searchTerm = signal<string>('');
-  readonly roleFilter = signal<'all' | 'administrador' | 'usuario'>('all');
+  readonly roleFilter = signal<'all' | 'admin' | 'usuario'>('all');
   readonly statusFilter = signal<'all' | 'activo' | 'inactivo'>('all');
   readonly sortBy = signal<'name' | 'date' | 'storage'>('name');
 
@@ -27,131 +27,199 @@ export class UserManagement {
   readonly successNotification = signal<string | null>(null);
   readonly errorNotification = signal<string | null>(null);
 
-  // Estado del Modal de Creación
-  readonly isCreateModalVisible = signal<boolean>(false);
-  readonly createName = signal<string>('');
-  readonly createLastName = signal<string>('');
-  readonly createEmail = signal<string>('');
-  readonly createPassword = signal<string>('');
-  readonly createRole = signal<'administrador' | 'usuario'>('usuario');
-  readonly createStorageMb = signal<number>(500);
-  readonly createError = signal<string | null>(null);
-
-  // Estado del Modal de Edición
-  readonly isEditModalVisible = signal<boolean>(false);
-  readonly editingUserId = signal<string | null>(null);
-  readonly editName = signal<string>('');
-  readonly editLastName = signal<string>('');
-  readonly editEmail = signal<string>('');
-  readonly editRole = signal<'administrador' | 'usuario'>('usuario');
-  readonly editStorageMb = signal<number>(500);
-  readonly editStatus = signal<'activo' | 'inactivo'>('activo');
-  readonly editError = signal<string | null>(null);
-
-  // Estado del Modal de Borrado Lógico (Desactivación)
+  // Visibilidad y control de modales Bootstrap
+  readonly isFormModalVisible = signal<boolean>(false);
   readonly isDeleteModalVisible = signal<boolean>(false);
+
+  // Formulario único para modal Bootstrap (Crear / Editar)
+  readonly isEditMode = signal<boolean>(false);
+  readonly editingUserId = signal<string | null>(null);
+  readonly formName = signal<string>('');
+  readonly formLastName = signal<string>('');
+  readonly formEmail = signal<string>('');
+  readonly formPassword = signal<string>('');
+  readonly formRole = signal<'admin' | 'usuario'>('usuario');
+  readonly formStorageMb = signal<number>(500);
+  readonly formStatus = signal<'activo' | 'inactivo'>('activo');
+  readonly formError = signal<string | null>(null);
+  readonly isSubmittingForm = signal<boolean>(false);
+
+  // Modal de Confirmación de Borrado Lógico / Reactivación
   readonly targetUser = signal<ManagedUser | null>(null);
   readonly deleteError = signal<string | null>(null);
+  readonly isSubmittingDelete = signal<boolean>(false);
 
   // Lista filtrada y ordenada reactivamente
   readonly filteredUsers = computed(() => {
+    const list = this.userService.users();
     const text = this.searchTerm().toLowerCase().trim();
     const role = this.roleFilter();
     const status = this.statusFilter();
     const sort = this.sortBy();
+
+    const filtered = list.filter((user) => {
+      const matchesSearch =
+        !text ||
+        user.name?.toLowerCase().includes(text) ||
+        user.lastName?.toLowerCase().includes(text) ||
+        user.email?.toLowerCase().includes(text);
+
+      const matchesRole = role === 'all' || user.role === role;
+      const matchesStatus = status === 'all' || user.status === status;
+
+      return matchesSearch && matchesRole && matchesStatus;
+    });
+
+    return filtered.sort((a, b) => {
+      if (sort === 'name') {
+        return (a.name || '').localeCompare(b.name || '');
+      }
+      if (sort === 'storage') {
+        return (b.storageLimitBytes || 0) - (a.storageLimitBytes || 0);
+      }
+      return new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime();
+    });
   });
 
-  // OPERACIÓN CREATE (Crear Usuario)
+  ngOnInit(): void {
+    this.loadUsers();
+  }
+
+  loadUsers(): void {
+    this.userService.loadUsers().subscribe({
+      error: (err) => {
+        this.showError(err.error?.mensaje || 'Error al sincronizar los usuarios con el servidor');
+      },
+    });
+  }
+
+  // Apertura de Modal Crear
   openCreateModal(): void {
-    this.createName.set('');
-    this.createLastName.set('');
-    this.createEmail.set('');
-    this.createPassword.set('');
-    this.createRole.set('usuario');
-    this.createStorageMb.set(500);
-    this.createError.set(null);
-    this.isCreateModalVisible.set(true);
-  }
-
-  closeCreateModal(): void {
-    this.isCreateModalVisible.set(false);
-    this.createError.set(null);
-  }
-
-  confirmCreateUser(): void {
-    const name = this.createName().trim();
-    const lastName = this.createLastName().trim();
-    const email = this.createEmail().trim().toLowerCase();
-    const password = this.createPassword().trim();
-    const role = this.createRole();
-    const storageLimitBytes = (this.createStorageMb() || 500) * 1024 * 1024;
-
-    if (!name || !lastName || !email || !password) {
-      this.createError.set('Todos los campos son obligatorios');
-      return;
-    }
-
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email)) {
-      this.createError.set('Por favor, ingresa un correo electrónico válido');
-      return;
-    }
-
-    if (password.length < 6) {
-      this.createError.set('La contraseña debe tener un mínimo de 6 caracteres');
-      return;
-    }
-
-    this.closeCreateModal();
-    this.showSuccess(`Usuario "${name} ${lastName}" creado exitosamente`);
-  }
-
-  // OPERACIÓN UPDATE (Editar Usuario)
-  openEditModal(user: ManagedUser): void {
-    this.editingUserId.set(user._id);
-    this.editName.set(user.name);
-    this.editLastName.set(user.lastName);
-    this.editEmail.set(user.email);
-    this.editRole.set(user.role);
-    this.editStorageMb.set(Math.round(user.storageLimitBytes / (1024 * 1024)));
-    this.editStatus.set(user.status);
-    this.editError.set(null);
-    this.isEditModalVisible.set(true);
-  }
-
-  closeEditModal(): void {
-    this.isEditModalVisible.set(false);
+    this.isEditMode.set(false);
     this.editingUserId.set(null);
-    this.editError.set(null);
+    this.formName.set('');
+    this.formLastName.set('');
+    this.formEmail.set('');
+    this.formPassword.set('');
+    this.formRole.set('usuario');
+    this.formStorageMb.set(500);
+    this.formStatus.set('activo');
+    this.formError.set(null);
+    this.isSubmittingForm.set(false);
+    this.isFormModalVisible.set(true);
   }
 
-  confirmEditUser(): void {
-    const id = this.editingUserId();
-    if (!id) return;
+  // Apertura de Modal Editar
+  openEditModal(user: ManagedUser): void {
+    this.isEditMode.set(true);
+    this.editingUserId.set(user._id);
+    this.formName.set(user.name);
+    this.formLastName.set(user.lastName);
+    this.formEmail.set(user.email);
+    this.formPassword.set('');
+    this.formRole.set(user.role);
+    this.formStorageMb.set(Math.round((user.storageLimitBytes || 524288000) / (1024 * 1024)));
+    this.formStatus.set(user.status);
+    this.formError.set(null);
+    this.isSubmittingForm.set(false);
+    this.isFormModalVisible.set(true);
+  }
 
-    const name = this.editName().trim();
-    const lastName = this.editLastName().trim();
-    const role = this.editRole();
-    const status = this.editStatus();
-    const storageLimitBytes = (this.editStorageMb() || 500) * 1024 * 1024;
+  closeFormModal(): void {
+    this.isFormModalVisible.set(false);
+    this.formError.set(null);
+  }
+
+  // Guardar usuario (Crear o Editar según el modo)
+  saveUser(): void {
+    const name = this.formName().trim();
+    const lastName = this.formLastName().trim();
+    const role = this.formRole();
+    const status = this.formStatus();
+    const storageLimitBytes = (this.formStorageMb() || 500) * 1024 * 1024;
 
     if (!name || !lastName) {
-      this.editError.set('El nombre y apellido son obligatorios');
+      this.formError.set('El nombre y apellido son obligatorios');
       return;
     }
 
-    // Evitar que el administrador actual se inactive a sí mismo accidentalmente
-    const activeUserId = this.currentUser()?._id;
-    if (id === activeUserId && status === 'inactivo') {
-      this.editError.set('No puedes desactivar tu propia cuenta mientras tienes la sesión activa');
-      return;
-    }
+    if (this.isEditMode()) {
+      const id = this.editingUserId();
+      if (!id) return;
 
-    this.closeEditModal();
-    this.showSuccess(`Usuario "${name} ${lastName}" actualizado exitosamente`);
+      const activeUserId = this.currentUser()?._id;
+      if (id === activeUserId && status === 'inactivo') {
+        this.formError.set(
+          'No puedes desactivar tu propia cuenta mientras tienes la sesión activa',
+        );
+        return;
+      }
+
+      this.isSubmittingForm.set(true);
+      this.userService
+        .updateUser(id, {
+          name,
+          lastName,
+          role,
+          status,
+          storageLimitBytes,
+        })
+        .subscribe({
+          next: () => {
+            this.isSubmittingForm.set(false);
+            this.closeFormModal();
+            this.showSuccess(`Usuario "${name} ${lastName}" actualizado exitosamente`);
+          },
+          error: (err) => {
+            this.isSubmittingForm.set(false);
+            this.formError.set(err.error?.mensaje || 'No fue posible actualizar al usuario');
+          },
+        });
+    } else {
+      const email = this.formEmail().trim().toLowerCase();
+      const password = this.formPassword().trim();
+
+      if (!email || !password) {
+        this.formError.set('El correo y la contraseña son obligatorios');
+        return;
+      }
+
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(email)) {
+        this.formError.set('Por favor, ingresa un correo electrónico válido');
+        return;
+      }
+
+      if (password.length < 6) {
+        this.formError.set('La contraseña debe tener un mínimo de 6 caracteres');
+        return;
+      }
+
+      this.isSubmittingForm.set(true);
+      this.userService
+        .createUser({
+          name,
+          lastName,
+          email,
+          password,
+          role,
+          storageLimitBytes,
+        })
+        .subscribe({
+          next: () => {
+            this.isSubmittingForm.set(false);
+            this.closeFormModal();
+            this.showSuccess(`Usuario "${name} ${lastName}" registrado exitosamente`);
+          },
+          error: (err) => {
+            this.isSubmittingForm.set(false);
+            this.formError.set(err.error?.mensaje || 'No fue posible registrar al usuario');
+          },
+        });
+    }
   }
 
-  // OPERACIÓN DELETE (Borrado Lógico / Desactivar / Reactivar)
+  // Modal Confirmar Borrado Lógico / Reactivación
   openDeleteModal(user: ManagedUser): void {
     const activeUserId = this.currentUser()?._id;
     if (user._id === activeUserId) {
@@ -161,6 +229,7 @@ export class UserManagement {
 
     this.targetUser.set(user);
     this.deleteError.set(null);
+    this.isSubmittingDelete.set(false);
     this.isDeleteModalVisible.set(true);
   }
 
@@ -174,14 +243,24 @@ export class UserManagement {
     const user = this.targetUser();
     if (!user) return;
 
-    const isDeactivating = user.status === 'activo';
-    this.closeDeleteModal();
+    this.isSubmittingDelete.set(true);
+    this.userService.toggleUserStatus(user._id).subscribe({
+      next: () => {
+        this.isSubmittingDelete.set(false);
+        const isDeactivating = user.status === 'activo';
+        this.closeDeleteModal();
 
-    if (isDeactivating) {
-      this.showSuccess(`Usuario "${user.name} ${user.lastName}" desactivado lógicamente`);
-    } else {
-      this.showSuccess(`Usuario "${user.name} ${user.lastName}" reactivado exitosamente`);
-    }
+        if (isDeactivating) {
+          this.showSuccess(`Usuario "${user.name} ${user.lastName}" desactivado lógicamente`);
+        } else {
+          this.showSuccess(`Usuario "${user.name} ${user.lastName}" reactivado exitosamente`);
+        }
+      },
+      error: (err) => {
+        this.isSubmittingDelete.set(false);
+        this.deleteError.set(err.error?.mensaje || 'Error al cambiar el estado del usuario');
+      },
+    });
   }
 
   // Utilidades y Notificaciones

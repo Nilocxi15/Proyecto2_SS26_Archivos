@@ -25,8 +25,8 @@ export class Token {
     return userJson ? (JSON.parse(userJson) as Usuario) : null;
   }
 
-  getUserRole(): 'administrador' | 'usuario' | null {
-    return this.getUser()?.rol ?? null;
+  getUserRole(): 'admin' | 'usuario' | null {
+    return this.getUser()?.role ?? null;
   }
 
   hasToken(): boolean {
