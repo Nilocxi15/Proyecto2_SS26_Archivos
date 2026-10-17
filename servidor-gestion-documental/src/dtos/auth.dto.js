@@ -17,11 +17,14 @@ const LoginDto = z.object({
  * DTO para el registro de nuevos usuarios
  */
 const RegistroDto = z.object({
-  nombre: z
+  name: z
     .string({ required_error: 'El nombre es obligatorio' })
     .trim()
     .min(2, 'El nombre debe tener al menos 2 caracteres')
-    .max(100, 'El nombre no puede exceder 100 caracteres'),
+    .max(100, 'El nombre no puede exceder 100 caracteres')
+    .optional(),
+  nombre: z.string().trim().optional(),
+  lastName: z.string().trim().optional().default(''),
   email: z
     .string({ required_error: 'El correo electrónico es obligatorio' })
     .trim()
@@ -29,12 +32,13 @@ const RegistroDto = z.object({
   password: z
     .string({ required_error: 'La contraseña es obligatoria' })
     .min(6, 'La contraseña debe contener al menos 6 caracteres'),
-  rol: z
-    .enum(['administrador', 'usuario'], {
-      errorMap: () => ({ message: 'El rol debe ser administrador o usuario' })
+  role: z
+    .enum(['admin', 'usuario'], {
+      errorMap: () => ({ message: 'El rol debe ser admin o usuario' })
     })
     .optional()
-    .default('usuario')
+    .default('usuario'),
+  rol: z.enum(['admin', 'usuario']).optional()
 });
 
 module.exports = {

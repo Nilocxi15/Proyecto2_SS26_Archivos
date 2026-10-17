@@ -50,7 +50,7 @@ export class Login {
     this.authService.login({ email, password }).subscribe({
       next: (response) => {
         this.isLoading.set(false);
-        this.navigateToRoleHome(response.usuario.rol);
+        this.navigateToRoleHome(response.usuario.role);
       },
       error: (err) => {
         this.isLoading.set(false);
@@ -63,7 +63,6 @@ export class Login {
 
   private navigateToRoleHome(role: string): void {
     switch (role) {
-      case 'administrador':
       case 'admin':
         this.router.navigate(['/admin']);
         break;

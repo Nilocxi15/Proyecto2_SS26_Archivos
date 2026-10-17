@@ -21,8 +21,8 @@ export class Navbar {
 
   // Computa si el usuario actual es administrador (por input o por sesión autenticada)
   readonly isEffectiveAdmin = computed(() => {
-    const role = this.currentUser()?.rol;
-    return this.isAdmin() || role === 'administrador' || role === ('admin' as any);
+    const role = this.currentUser()?.role;
+    return this.isAdmin() || role === 'admin';
   });
 
   // Navegación entre secciones

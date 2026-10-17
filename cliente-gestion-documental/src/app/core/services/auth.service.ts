@@ -12,7 +12,7 @@ import {
   UserProfileResponse,
   Usuario
 } from '../models/auth.models';
-import { Token } from './token';
+import { Token } from './token.service';
 
 @Injectable({
   providedIn: 'root'
@@ -28,8 +28,7 @@ export class AuthService {
   readonly currentUser = signal<Usuario | null>(this.tokenService.getUser());
   readonly isAuthenticated = computed(() => !!this.currentUser());
   readonly isAdmin = computed(() => {
-    const rol = this.currentUser()?.rol;
-    return rol === 'administrador' || rol === ('admin' as any);
+    return this.currentUser()?.role === 'admin';
   });
 
   /**
