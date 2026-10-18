@@ -73,9 +73,33 @@ const createFile = async (req, res, next) => {
   }
 };
 
+/**
+ * GET /api/resources/compartido-conmigo
+ * Obtiene las carpetas y archivos compartidos con el usuario autenticado.
+ * Query params opcionales:
+ * - folderId: ID de la carpeta compartida (si se navega dentro de una carpeta compartida)
+ */
+const getSharedWithMe = async (req, res, next) => {
+  try {
+    const userId = req.user._id || req.user.id;
+    const { folderId } = req.query;
+
+    const data = await resourceService.getSharedWithMe(userId, folderId);
+
+    return res.status(200).json({
+      status: "success",
+      data,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   getMyFiles,
   getMisArchivos: getMyFiles,
+  getSharedWithMe,
+  getCompartidoConmigo: getSharedWithMe,
   createFolder,
   createFile,
 };

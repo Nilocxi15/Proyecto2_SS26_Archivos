@@ -18,13 +18,21 @@ export class ResourceService {
   private readonly http = inject(HttpClient);
   private readonly apiUrl = `${environment.apiUrl}/resources`;
 
-  // Estado reactivo centralizado con Angular Signals
+  // Estado reactivo centralizado con Angular Signals (Mis Archivos)
   readonly folders = signal<FolderItem[]>([]);
   readonly files = signal<FileItem[]>([]);
   readonly currentFolder = signal<FolderItem | null>(null);
   readonly breadcrumbs = signal<BreadcrumbItem[]>([]);
   readonly isLoading = signal<boolean>(false);
   readonly error = signal<string | null>(null);
+
+  // Estado reactivo centralizado para "Compartido conmigo"
+  readonly sharedFolders = signal<FolderItem[]>([]);
+  readonly sharedFiles = signal<FileItem[]>([]);
+  readonly sharedCurrentFolder = signal<FolderItem | null>(null);
+  readonly sharedBreadcrumbs = signal<BreadcrumbItem[]>([]);
+  readonly isSharedLoading = signal<boolean>(false);
+  readonly sharedError = signal<string | null>(null);
 
   /**
    * Carga los archivos y carpetas del usuario según el folderId (raíz si es null o vacío)
@@ -54,6 +62,40 @@ export class ResourceService {
           err?.error?.mensaje || 'Error al cargar los archivos y carpetas desde el servidor';
         this.error.set(errorMsg);
         this.isLoading.set(false);
+        return throwError(() => err);
+      }),
+    );
+  }
+
+  /**
+   * Carga los archivos y carpetas compartidos con el usuario autenticado
+   * @param folderId ID opcional de la carpeta compartida a explorar
+   */
+  loadCompartidoConmigo(folderId?: string | null): Observable<MisArchivosResponse> {
+    this.isSharedLoading.set(true);
+    this.sharedError.set(null);
+
+    let params = new HttpParams();
+    if (folderId) {
+      params = params.set('folderId', folderId);
+    }
+
+    return this.http.get<MisArchivosResponse>(`${this.apiUrl}/compartido-conmigo`, { params }).pipe(
+      tap((res) => {
+        if (res.status === 'success' && res.data) {
+          this.sharedCurrentFolder.set(res.data.currentFolder);
+          this.sharedBreadcrumbs.set(res.data.breadcrumbs || []);
+          this.sharedFolders.set(res.data.folders || []);
+          this.sharedFiles.set(res.data.files || []);
+        }
+        this.isSharedLoading.set(false);
+      }),
+      catchError((err) => {
+        const errorMsg =
+          err?.error?.mensaje ||
+          'Error al cargar los documentos y carpetas compartidos desde el servidor';
+        this.sharedError.set(errorMsg);
+        this.isSharedLoading.set(false);
         return throwError(() => err);
       }),
     );
