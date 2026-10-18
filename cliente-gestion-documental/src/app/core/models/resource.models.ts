@@ -3,6 +3,9 @@ export interface FolderItem {
   id?: string;
   name: string;
   ownerId: string;
+  ownerName?: string;
+  ownerEmail?: string;
+  myPermission?: 'lectura' | 'edicion' | 'comentar' | string;
   parentId: string | null;
   parentFolderId?: string | null;
   path: string;
@@ -23,6 +26,8 @@ export interface FileItem {
   size?: number;
   ownerId: string;
   ownerName?: string;
+  ownerEmail?: string;
+  myPermission?: 'lectura' | 'edicion' | 'comentar' | string;
   folderId: string | null;
   path?: string;
   content?: string;
