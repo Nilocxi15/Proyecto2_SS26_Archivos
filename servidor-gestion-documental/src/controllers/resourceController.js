@@ -1,4 +1,7 @@
 const resourceService = require("../services/resourceService");
+const myResourcesService = require("../services/myResourcesService");
+const sharedResourcesService = require("../services/sharedResourcesService");
+const recycleBinResourcesService = require("../services/recycleBinResourcesService");
 
 /**
  * GET /api/resources/mis-archivos
@@ -11,7 +14,7 @@ const getMyFiles = async (req, res, next) => {
     const userId = req.user._id || req.user.id;
     const { folderId } = req.query;
 
-    const data = await resourceService.getMyFiles(userId, folderId);
+    const data = await myResourcesService.getMyFiles(userId, folderId);
 
     return res.status(200).json({
       status: "success",
@@ -31,7 +34,7 @@ const createFolder = async (req, res, next) => {
     const userId = req.user._id || req.user.id;
     const { name, parentId } = req.body;
 
-    const folder = await resourceService.createFolder(userId, {
+    const folder = await myResourcesService.createFolder(userId, {
       name,
       parentId,
     });
@@ -55,7 +58,7 @@ const createFile = async (req, res, next) => {
     const userId = req.user._id || req.user.id;
     const { name, extension, content, folderId, tags } = req.body;
 
-    const file = await resourceService.createFile(userId, {
+    const file = await myResourcesService.createFile(userId, {
       name,
       extension,
       content,
@@ -84,7 +87,7 @@ const getSharedWithMe = async (req, res, next) => {
     const userId = req.user._id || req.user.id;
     const { folderId } = req.query;
 
-    const data = await resourceService.getSharedWithMe(userId, folderId);
+    const data = await sharedResourcesService.getSharedWithMe(userId, folderId);
 
     return res.status(200).json({
       status: "success",
@@ -106,7 +109,7 @@ const getTrash = async (req, res, next) => {
     const userId = req.user._id || req.user.id;
     const { folderId } = req.query;
 
-    const data = await resourceService.getTrash(userId, folderId);
+    const data = await recycleBinResourcesService.getTrash(userId, folderId);
 
     return res.status(200).json({
       status: "success",
@@ -130,7 +133,7 @@ const toggleTrash = async (req, res, next) => {
 
     const { moveToTrash } = req.body;
 
-    const updatedResource = await resourceService.moveToTrashOrRestore(
+    const updatedResource = await recycleBinResourcesService.moveToTrashOrRestore(
       userId,
       id,
       moveToTrash,
@@ -158,7 +161,7 @@ const deleteResource = async (req, res, next) => {
     const userId = req.user._id || req.user.id;
     const { id } = req.params;
 
-    const deletedInfo = await resourceService.deleteResourcePermanently(
+    const deletedInfo = await recycleBinResourcesService.deleteResourcePermanently(
       userId,
       id,
     );
