@@ -95,11 +95,54 @@ const getSharedWithMe = async (req, res, next) => {
   }
 };
 
+/**
+ * GET /api/resources/papelera
+ * Obtiene las carpetas y archivos en la papelera (isTrash: true) del usuario autenticado.
+ * Query params opcionales:
+ * - folderId: ID de la carpeta en papelera a explorar
+ */
+const getTrash = async (req, res, next) => {
+  try {
+    const userId = req.user._id || req.user.id;
+    const { folderId } = req.query;
+
+    const data = await resourceService.getTrash(userId, folderId);
+
+    return res.status(200).json({
+      status: "success",
+      data,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * GET /api/resources/files/:id/download
+ * Descarga un archivo activo (isTrash: false) con su nombre, extensión y contenido
+ */
+const downloadFile = async (req, res, next) => {
+  try {
+    const userId = req.user._id || req.user.id;
+    const { id } = req.params;
+
+    const fileData = await resourceService.getFileForDownload(userId, id);
+
+    return res.status(200).json({
+      status: "success",
+      data: fileData,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
-  getMyFiles,
-  getMisArchivos: getMyFiles,
+  getMyFiles,  
   getSharedWithMe,
-  getCompartidoConmigo: getSharedWithMe,
+  getTrash,
+  getPapelera: getTrash,
+  downloadFile,
   createFolder,
   createFile,
 };

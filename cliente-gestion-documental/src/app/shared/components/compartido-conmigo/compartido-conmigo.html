@@ -1,3 +1,20 @@
+<!-- Alerta de Notificación Temporal -->
+@if (successNotification()) {
+  <div
+    class="alert alert-success alert-dismissible fade show d-flex align-items-center shadow-sm mb-4 border-0"
+    role="alert"
+  >
+    <i class="bi bi-check-circle-fill me-2 fs-5"></i>
+    <div>{{ successNotification() }}</div>
+    <button
+      type="button"
+      class="btn-close"
+      aria-label="Cerrar"
+      (click)="successNotification.set(null)"
+    ></button>
+  </div>
+}
+
 <!-- Alerta de Error de Servicio -->
 @if (serviceError()) {
   <div
@@ -306,14 +323,26 @@
                       </div>
                     </div>
 
-                    <button
-                      type="button"
-                      class="btn btn-sm btn-outline-secondary border-0 rounded-circle"
-                      (click)="openFileDetails(file)"
-                      title="Ver detalles"
-                    >
-                      <i class="bi bi-info-circle"></i>
-                    </button>
+                    <div class="d-flex align-items-center gap-1">
+                      @if (!file.isTrash) {
+                        <button
+                          type="button"
+                          class="btn btn-sm btn-outline-primary border-0 rounded-circle"
+                          (click)="downloadFile(file)"
+                          title="Descargar archivo"
+                        >
+                          <i class="bi bi-download"></i>
+                        </button>
+                      }
+                      <button
+                        type="button"
+                        class="btn btn-sm btn-outline-secondary border-0 rounded-circle"
+                        (click)="openFileDetails(file)"
+                        title="Ver detalles"
+                      >
+                        <i class="bi bi-info-circle"></i>
+                      </button>
+                    </div>
                   </div>
 
                   <h3 class="h6 fw-semibold text-dark text-truncate mb-1" title="{{ file.name }}">
@@ -405,13 +434,25 @@
                     <td class="text-muted small">{{ formatFileSize(file.sizeBytes) }}</td>
                     <td class="text-muted small">{{ formatDate(file.updatedAt) }}</td>
                     <td class="text-end pe-3">
-                      <button
-                        type="button"
-                        class="btn btn-sm btn-outline-primary rounded-pill px-3"
-                        (click)="openFileDetails(file)"
-                      >
-                        <i class="bi bi-info-circle me-1"></i> Detalles
-                      </button>
+                      <div class="d-inline-flex align-items-center gap-2">
+                        @if (!file.isTrash) {
+                          <button
+                            type="button"
+                            class="btn btn-sm btn-primary rounded-pill px-3"
+                            (click)="downloadFile(file)"
+                            title="Descargar archivo"
+                          >
+                            <i class="bi bi-download me-1"></i> Descargar
+                          </button>
+                        }
+                        <button
+                          type="button"
+                          class="btn btn-sm btn-outline-primary rounded-pill px-3"
+                          (click)="openFileDetails(file)"
+                        >
+                          <i class="bi bi-info-circle me-1"></i> Detalles
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 }
@@ -604,6 +645,17 @@
         </div>
 
         <div class="modal-footer border-top py-2">
+          @if (selectedFileDetail(); as file) {
+            @if (!file.isTrash) {
+              <button
+                type="button"
+                class="btn btn-primary btn-sm rounded-pill px-3"
+                (click)="downloadFile(file)"
+              >
+                <i class="bi bi-download me-1"></i> Descargar
+              </button>
+            }
+          }
           <button
             type="button"
             class="btn btn-secondary btn-sm rounded-pill px-3"

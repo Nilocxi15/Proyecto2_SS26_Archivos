@@ -457,9 +457,230 @@ const getSharedWithMe = async (userId, folderId = null) => {
   };
 };
 
+/**
+ * Obtiene los archivos y carpetas en la papelera (isTrash: true) del usuario autenticado
+ * @param {string|mongoose.Types.ObjectId} userId - ID del usuario autenticado
+ * @param {string|null} folderId - ID de una carpeta en papelera si se navega dentro de ella
+ * @returns {Promise<{currentFolder: object|null, breadcrumbs: Array, folders: Array, files: Array}>}
+ */
+const getTrash = async (userId, folderId = null) => {
+  let currentFolder = null;
+  let breadcrumbs = [];
+
+  // Formateo de dirección original de archivos en papelera
+  const formatTrashedFile = (file) => ({
+    ...file,
+    folderId: file.folderId?._id || file.folderId || null,
+    path: file.folderId?.path || "Raíz (/)",
+  });
+
+  // Si se navega dentro de una carpeta específica de la papelera
+  if (folderId && folderId !== "null" && folderId !== "root") {
+    if (!mongoose.Types.ObjectId.isValid(folderId)) {
+      const error = new Error("El identificador de la carpeta no es válido");
+      error.statusCode = 400;
+      throw error;
+    }
+
+    const targetFolderId = new mongoose.Types.ObjectId(folderId);
+
+    currentFolder = await Folder.findOne({
+      _id: targetFolderId,
+      ownerId: userId,
+      isTrash: true,
+    }).lean();
+
+    if (!currentFolder) {
+      const error = new Error(
+        "Carpeta no encontrada en la papelera o no tienes permisos para acceder a ella",
+      );
+      error.statusCode = 404;
+      throw error;
+    }
+
+    // Construir breadcrumbs con ancestros que también estén en la papelera
+    if (currentFolder.ancestors && currentFolder.ancestors.length > 0) {
+      const ancestorFolders = await Folder.find({
+        _id: { $in: currentFolder.ancestors },
+        ownerId: userId,
+        isTrash: true,
+      })
+        .select("_id name")
+        .lean();
+
+      const ancestorMap = new Map(
+        ancestorFolders.map((f) => [f._id.toString(), f]),
+      );
+      breadcrumbs = currentFolder.ancestors
+        .map((id) => ancestorMap.get(id.toString()))
+        .filter(Boolean);
+    }
+
+    breadcrumbs.push({
+      _id: currentFolder._id,
+      name: currentFolder.name,
+    });
+
+    const [folders, files] = await Promise.all([
+      Folder.find({
+        ownerId: userId,
+        parentId: targetFolderId,
+      })
+        .sort({ name: 1 })
+        .lean(),
+
+      File.find({
+        ownerId: userId,
+        folderId: targetFolderId,
+      })
+        .select("-content")
+        .populate("folderId", "name path")
+        .sort({ trashedAt: -1, name: 1 })
+        .lean(),
+    ]);
+
+    return {
+      currentFolder,
+      breadcrumbs,
+      folders,
+      files: files.map(formatTrashedFile),
+    };
+  }
+
+  // Nivel raíz de la papelera: todos los recursos del usuario con isTrash: true
+  const [trashedFolders, trashedFiles] = await Promise.all([
+    Folder.find({
+      ownerId: userId,
+      isTrash: true,
+    })
+      .sort({ trashedAt: -1, name: 1 })
+      .lean(),
+
+    File.find({
+      ownerId: userId,
+      isTrash: true,
+    })
+      .select("-content")
+      .populate("folderId", "name path")
+      .sort({ trashedAt: -1, name: 1 })
+      .lean(),
+  ]);
+
+  // Evitar duplicar en la raíz elementos cuyo contenedor padre ya está listado en la papelera
+  const trashedFolderIds = new Set(trashedFolders.map((f) => f._id.toString()));
+
+  const rootTrashFolders = trashedFolders.filter(
+    (f) => !f.parentId || !trashedFolderIds.has(f.parentId.toString()),
+  );
+  const rootTrashFiles = trashedFiles
+    .map(formatTrashedFile)
+    .filter(
+      (file) =>
+        !file.folderId || !trashedFolderIds.has(file.folderId.toString()),
+    );
+
+  return {
+    currentFolder: null,
+    breadcrumbs: [],
+    folders: rootTrashFolders,
+    files: rootTrashFiles,
+  };
+};
+
+/**
+ * Obtiene un archivo para su descarga verificando permisos y que no esté en la papelera (isTrash: false)
+ * @param {string|mongoose.Types.ObjectId} userId - ID del usuario autenticado
+ * @param {string} fileId - ID del archivo a descargar
+ * @returns {Promise<{fileName: string, extension: string, content: string, mimeType: string}>}
+ */
+const getFileForDownload = async (userId, fileId) => {
+  if (!fileId || !mongoose.Types.ObjectId.isValid(fileId)) {
+    const error = new Error("El identificador del archivo no es válido");
+    error.statusCode = 400;
+    throw error;
+  }
+
+  const userObjectId = new mongoose.Types.ObjectId(userId);
+  const file = await File.findById(fileId).lean();
+
+  if (!file) {
+    const error = new Error("El archivo solicitado no existe");
+    error.statusCode = 404;
+    throw error;
+  }
+
+  if (file.isTrash) {
+    const error = new Error(
+      "No es posible descargar un archivo que se encuentra en la papelera",
+    );
+    error.statusCode = 400;
+    throw error;
+  }
+
+  // Verificar permisos: propietario directo, compartido en el archivo, o compartido en carpeta contenedora/ancestro
+  const isOwner = file.ownerId.toString() === userObjectId.toString();
+  const isDirectlyShared = (file.sharedWith || []).some(
+    (s) => s.userId && s.userId.toString() === userObjectId.toString(),
+  );
+
+  let isFolderShared = false;
+  if (!isOwner && !isDirectlyShared && file.folderId) {
+    const parentFolder = await Folder.findOne({
+      _id: file.folderId,
+      isTrash: false,
+    })
+      .select("_id sharedWith ancestors")
+      .lean();
+
+    if (parentFolder) {
+      const directFolderShare = (parentFolder.sharedWith || []).some(
+        (s) => s.userId && s.userId.toString() === userObjectId.toString(),
+      );
+
+      if (directFolderShare) {
+        isFolderShared = true;
+      } else if (parentFolder.ancestors && parentFolder.ancestors.length > 0) {
+        const sharedAncestorCount = await Folder.countDocuments({
+          _id: { $in: parentFolder.ancestors },
+          isTrash: false,
+          "sharedWith.userId": userObjectId,
+        });
+        isFolderShared = sharedAncestorCount > 0;
+      }
+    }
+  }
+
+  if (!isOwner && !isDirectlyShared && !isFolderShared) {
+    const error = new Error("No tienes permisos para descargar este archivo");
+    error.statusCode = 403;
+    throw error;
+  }
+
+  const ext = (file.extension || "txt").replace(".", "").toLowerCase();
+  const suffix = `.${ext}`;
+  const cleanName = (file.name || "documento").trim();
+  const fileName = cleanName.toLowerCase().endsWith(suffix)
+    ? cleanName
+    : `${cleanName}${suffix}`;
+
+  const mimeType =
+    ext === "md"
+      ? "text/markdown; charset=utf-8"
+      : "text/plain; charset=utf-8";
+
+  return {
+    fileName,
+    extension: ext,
+    content: file.content || "",
+    mimeType,
+  };
+};
+
 module.exports = {
   getMyFiles,
   getSharedWithMe,
+  getTrash,
+  getFileForDownload,
   createFolder,
   createFile,
 };

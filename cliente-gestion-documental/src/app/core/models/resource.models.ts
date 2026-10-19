@@ -13,6 +13,7 @@ export interface FolderItem {
   sharedWith?: Array<{ userId: string; permission: string }>;
   itemCount?: number;
   isTrash?: boolean;
+  trashedAt?: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -34,6 +35,7 @@ export interface FileItem {
   sharedWith?: Array<{ userId: string; permission: string }>;
   tags?: string[];
   isTrash?: boolean;
+  trashedAt?: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -66,6 +68,18 @@ export interface CreateFileRequest {
   content: string;
   folderId?: string | null;
   tags?: string[];
+}
+
+export interface FileDownloadData {
+  fileName: string;
+  extension: string;
+  content: string;
+  mimeType: string;
+}
+
+export interface FileDownloadResponse {
+  status: string;
+  data: FileDownloadData;
 }
 
 export type SelectedResource =

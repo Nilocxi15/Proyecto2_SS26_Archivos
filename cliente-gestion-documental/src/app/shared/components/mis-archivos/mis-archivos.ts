@@ -246,6 +246,27 @@ export class MisArchivos implements OnInit {
     this.selectedFileDetail.set(null);
   }
 
+  // DESCARGAR ARCHIVO (solo archivos que no estén en la papelera)
+  downloadFile(file: FileItem): void {
+    if (file.isTrash) {
+      this.resourceService.error.set(
+        'No es posible descargar un archivo que se encuentra en la papelera',
+      );
+      return;
+    }
+
+    this.resourceService.downloadFile(file).subscribe({
+      next: (res) => {
+        const downloadedName = res.data?.fileName || file.name;
+        this.showNotification(`Archivo "${downloadedName}" descargado exitosamente`);
+      },
+      error: (err) => {
+        const msg = err?.error?.mensaje || 'Error al descargar el archivo desde el servidor';
+        this.resourceService.error.set(msg);
+      },
+    });
+  }
+
   // Notificación temporal
   private showNotification(message: string): void {
     this.successNotification.set(message);

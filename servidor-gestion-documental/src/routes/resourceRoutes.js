@@ -18,10 +18,20 @@ router.get(
   resourceController.getSharedWithMe,
 );
 
+// Listar archivos y carpetas en la papelera del usuario autenticado
+router.get("/papelera", protectRoutes, resourceController.getTrash);
+
 // Crear una nueva carpeta
 router.post("/folders", protectRoutes, resourceController.createFolder);
 
 // Subir/Crear un nuevo archivo .txt o .md
 router.post("/files", protectRoutes, resourceController.createFile);
+
+// Descargar un archivo activo (no en papelera)
+router.get(
+  "/files/:id/download",
+  protectRoutes,
+  resourceController.downloadFile,
+);
 
 module.exports = router;
