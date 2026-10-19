@@ -219,6 +219,14 @@
                     </button>
                     <button
                       type="button"
+                      class="btn btn-sm btn-outline-danger border-0 rounded-circle"
+                      (click)="openPermanentDeleteModal(folder, 'folder')"
+                      title="Eliminar permanentemente"
+                    >
+                      <i class="bi bi-trash3"></i>
+                    </button>
+                    <button
+                      type="button"
                       class="btn btn-sm btn-outline-secondary border-0 rounded-circle"
                       (click)="openFolderDetails(folder)"
                       title="Ver detalles"
@@ -318,6 +326,14 @@
                       </button>
                       <button
                         type="button"
+                        class="btn btn-sm btn-outline-danger border-0 rounded-circle"
+                        (click)="openPermanentDeleteModal(file, 'file')"
+                        title="Eliminar permanentemente"
+                      >
+                        <i class="bi bi-trash3"></i>
+                      </button>
+                      <button
+                        type="button"
                         class="btn btn-sm btn-outline-secondary border-0 rounded-circle"
                         (click)="openFileDetails(file)"
                         title="Ver detalles"
@@ -407,6 +423,14 @@
                           title="Restaurar archivo"
                         >
                           <i class="bi bi-arrow-counterclockwise me-1"></i> Restaurar
+                        </button>
+                        <button
+                          type="button"
+                          class="btn btn-sm btn-outline-danger rounded-pill px-3"
+                          (click)="openPermanentDeleteModal(file, 'file')"
+                          title="Eliminar permanentemente"
+                        >
+                          <i class="bi bi-trash3 me-1"></i> Eliminar
                         </button>
                         <button
                           type="button"
@@ -577,6 +601,13 @@
           @if (selectedFolderDetail(); as folder) {
             <button
               type="button"
+              class="btn btn-outline-danger btn-sm rounded-pill px-3"
+              (click)="openPermanentDeleteModal(folder, 'folder')"
+            >
+              <i class="bi bi-trash3 me-1"></i> Eliminar definitivamente
+            </button>
+            <button
+              type="button"
               class="btn btn-success btn-sm rounded-pill px-3"
               (click)="restoreResource(folder, 'folder')"
             >
@@ -584,6 +615,13 @@
             </button>
           }
           @if (selectedFileDetail(); as file) {
+            <button
+              type="button"
+              class="btn btn-outline-danger btn-sm rounded-pill px-3"
+              (click)="openPermanentDeleteModal(file, 'file')"
+            >
+              <i class="bi bi-trash3 me-1"></i> Eliminar definitivamente
+            </button>
             <button
               type="button"
               class="btn btn-success btn-sm rounded-pill px-3"
@@ -598,6 +636,73 @@
             (click)="closeDetailsModal()"
           >
             Cerrar
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+}
+
+<!-- MODAL BOOTSTRAP: CONFIRMAR ELIMINACIÓN FÍSICA (PERMANENTE) -->
+@if (isPermanentDeleteModalVisible() && resourceToDelete(); as target) {
+  <div class="modal-backdrop fade show"></div>
+  <div
+    class="modal fade show d-block"
+    tabindex="-1"
+    role="dialog"
+    aria-modal="true"
+    (click)="closePermanentDeleteModal()"
+  >
+    <div class="modal-dialog modal-dialog-centered" (click)="$event.stopPropagation()">
+      <div class="modal-content border-0 shadow-lg rounded-3">
+        <div class="modal-header border-bottom py-3">
+          <div class="d-flex align-items-center gap-2">
+            <i class="bi bi-exclamation-triangle-fill text-danger fs-4"></i>
+            <h5 class="modal-title h6 fw-bold mb-0">Eliminar Permanentemente</h5>
+          </div>
+          <button
+            type="button"
+            class="btn-close"
+            aria-label="Cerrar"
+            (click)="closePermanentDeleteModal()"
+          ></button>
+        </div>
+
+        <div class="modal-body p-4">
+          <p class="mb-2 text-dark">
+            ¿Estás seguro de que deseas eliminar permanentemente
+            {{ target.type === 'folder' ? 'la carpeta' : 'el archivo' }}
+            <strong>"{{ target.name }}"</strong>?
+          </p>
+          @if (target.type === 'folder') {
+            <div class="alert alert-danger py-2 px-3 small border-0 mb-0">
+              <i class="bi bi-exclamation-octagon-fill me-1"></i>
+              <strong>Acción irreversible:</strong> Se eliminarán de forma definitiva esta carpeta,
+              todas sus subcarpetas y todos los archivos contenidos en ella. No podrás recuperarlos.
+            </div>
+          } @else {
+            <div class="alert alert-danger py-2 px-3 small border-0 mb-0">
+              <i class="bi bi-exclamation-octagon-fill me-1"></i>
+              <strong>Acción irreversible:</strong> El archivo será borrado físicamente de la base
+              de datos y no podrá ser recuperado.
+            </div>
+          }
+        </div>
+
+        <div class="modal-footer border-top py-2">
+          <button
+            type="button"
+            class="btn btn-light btn-sm rounded-pill px-3"
+            (click)="closePermanentDeleteModal()"
+          >
+            Cancelar
+          </button>
+          <button
+            type="button"
+            class="btn btn-danger btn-sm rounded-pill px-3"
+            (click)="confirmPermanentDelete()"
+          >
+            <i class="bi bi-trash3 me-1"></i> Eliminar definitivamente
           </button>
         </div>
       </div>

@@ -149,6 +149,34 @@ const toggleTrash = async (req, res, next) => {
 };
 
 /**
+ * DELETE /api/resources/:id
+ * Elimina permanentemente un recurso (carpeta o archivo) de la papelera (isTrash: true).
+ * Solo se permite eliminar recursos que estén en la papelera.
+ */
+const deleteResource = async (req, res, next) => {
+  try {
+    const userId = req.user._id || req.user.id;
+    const { id } = req.params;
+
+    const deletedInfo = await resourceService.deleteResourcePermanently(
+      userId,
+      id,
+    );
+
+    return res.status(200).json({
+      status: "success",
+      mensaje:
+        deletedInfo.type === "folder"
+          ? `Carpeta "${deletedInfo.name}" y su contenido eliminados permanentemente`
+          : `Archivo "${deletedInfo.name}" eliminado permanentemente`,
+      data: deletedInfo,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
  * GET /api/resources/files/:id/download
  * Descarga un archivo activo (isTrash: false) con su nombre, extensión y contenido
  */
@@ -173,6 +201,7 @@ module.exports = {
   getSharedWithMe,
   getTrash,
   toggleTrash,
+  deleteResource,
   downloadFile,
   createFolder,
   createFile,

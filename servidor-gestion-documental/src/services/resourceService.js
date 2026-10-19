@@ -658,6 +658,85 @@ const moveToTrashOrRestore = async (userId, resourceId, moveToTrash) => {
 };
 
 /**
+ * Borrado permanente de un archivo o carpeta (y sus descendientes) en la papelera
+ * @param {string|mongoose.Types.ObjectId} userId - ID del usuario autenticado
+ * @param {string} resourceId - ID del archivo o carpeta a eliminar permanentemente
+ */
+
+const deleteResourcePermanently = async (userId, resourceId) => {
+  if (!mongoose.Types.ObjectId.isValid(resourceId)) {
+    const error = new Error("El identificador del recurso no es válido");
+    error.statusCode = 400;
+    throw error;
+  }
+
+  const userObjectId = new mongoose.Types.ObjectId(userId);
+
+  // Intentar encontrar el recurso como carpeta
+  const folder = await Folder.findOne({
+    _id: resourceId,
+    ownerId: userObjectId,
+  });
+
+  if (folder) {
+    if (!folder.isTrash) {
+      const error = new Error(
+        "La carpeta debe estar en la papelera para poder eliminarla permanentemente",
+      );
+      error.statusCode = 400;
+      throw error;
+    }
+
+    // Obtener todas las subcarpetas descendientes de esta carpeta
+    const subFolders = await Folder.find({
+      ownerId: userObjectId,
+      ancestors: folder._id,
+    }).select("_id");
+
+    const allFoldersIds = [folder._id, ...subFolders.map((sf) => sf._id)];
+
+    // Eliminar físicamente los archivos contenidos y las carpetas (raíz + descendientes)
+    await Promise.all([
+      File.deleteMany({
+        folderId: { $in: allFoldersIds },
+        ownerId: userObjectId,
+      }),
+      Folder.deleteMany({
+        _id: { $in: allFoldersIds },
+        ownerId: userObjectId,
+      }),
+    ]);
+
+    return { type: "folder", name: folder.name };
+  }
+
+  // Si no se encuentra como carpeta, intentar encontrarlo como archivo
+  const file = await File.findOne({
+    _id: resourceId,
+    ownerId: userObjectId,
+  }).select("-content");
+
+  if (file) {
+    if (!file.isTrash) {
+      const error = new Error(
+        "El archivo debe estar en la papelera para poder eliminarlo permanentemente",
+      );
+      error.statusCode = 400;
+      throw error;
+    }
+
+    // Eliminar físicamente el archivo
+    await File.deleteOne({ _id: file._id, ownerId: userObjectId });
+
+    return { type: "file", name: file.name };
+  }
+
+  const error = new Error("El recurso no existe o no pertenece al usuario");
+  error.statusCode = 404;
+  throw error;
+};
+
+/**
  * Obtiene un archivo para su descarga verificando permisos y que no esté en la papelera (isTrash: false)
  * @param {string|mongoose.Types.ObjectId} userId - ID del usuario autenticado
  * @param {string} fileId - ID del archivo a descargar
@@ -749,6 +828,7 @@ module.exports = {
   getSharedWithMe,
   getTrash,
   moveToTrashOrRestore,
+  deleteResourcePermanently,
   getFileForDownload,
   createFolder,
   createFile,

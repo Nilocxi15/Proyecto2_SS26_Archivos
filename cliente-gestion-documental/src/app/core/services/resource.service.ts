@@ -233,4 +233,20 @@ export class ResourceService {
       }),
     );
   }
+
+  /**
+   * Elimina físicamente (de forma permanente) un archivo o carpeta que se encuentre en la papelera
+   * @param resourceId ID del archivo o carpeta en la papelera
+   */
+  deleteResourcePermanently(resourceId: string): Observable<any> {
+    return this.http.delete<any>(`${this.apiUrl}/${resourceId}`).pipe(
+      tap(() => {
+        const currentTrashId = this.trashCurrentFolder()?._id || null;
+        this.loadPapelera(currentTrashId).subscribe();
+      }),
+      catchError((err) => {
+        return throwError(() => err);
+      }),
+    );
+  }
 }

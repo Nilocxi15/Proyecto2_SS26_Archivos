@@ -24,6 +24,14 @@ export class Papelera implements OnInit {
   readonly selectedFileDetail = signal<FileItem | null>(null);
   readonly isDetailModalVisible = signal<boolean>(false);
 
+  // Estado del modal de confirmación para eliminación física (permanente)
+  readonly isPermanentDeleteModalVisible = signal<boolean>(false);
+  readonly resourceToDelete = signal<{
+    id: string;
+    name: string;
+    type: 'folder' | 'file';
+  } | null>(null);
+
   // Notificación de éxito
   readonly successNotification = signal<string | null>(null);
 
@@ -150,6 +158,43 @@ export class Papelera implements OnInit {
       error: (err) => {
         const msg = err?.error?.mensaje || 'Error al restaurar el recurso desde la papelera';
         this.resourceService.trashError.set(msg);
+      },
+    });
+  }
+
+  // ELIMINACIÓN FÍSICA (PERMANENTE) DESDE LA PAPELERA
+  openPermanentDeleteModal(resource: FolderItem | FileItem, type: 'folder' | 'file'): void {
+    this.resourceToDelete.set({
+      id: resource._id,
+      name: resource.name,
+      type,
+    });
+    this.isPermanentDeleteModalVisible.set(true);
+  }
+
+  closePermanentDeleteModal(): void {
+    this.isPermanentDeleteModalVisible.set(false);
+    this.resourceToDelete.set(null);
+  }
+
+  confirmPermanentDelete(): void {
+    const target = this.resourceToDelete();
+    if (!target) return;
+
+    this.resourceService.deleteResourcePermanently(target.id).subscribe({
+      next: (res) => {
+        const fallbackMsg =
+          target.type === 'folder'
+            ? `Carpeta "${target.name}" y su contenido eliminados permanentemente`
+            : `Archivo "${target.name}" eliminado permanentemente`;
+        this.closePermanentDeleteModal();
+        this.closeDetailsModal();
+        this.showNotification(res?.mensaje || fallbackMsg);
+      },
+      error: (err) => {
+        const msg = err?.error?.mensaje || 'Error al eliminar permanentemente el recurso';
+        this.resourceService.trashError.set(msg);
+        this.closePermanentDeleteModal();
       },
     });
   }
