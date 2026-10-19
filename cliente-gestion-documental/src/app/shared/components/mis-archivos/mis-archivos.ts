@@ -34,6 +34,14 @@ export class MisArchivos implements OnInit {
   readonly selectedFileDetail = signal<FileItem | null>(null);
   readonly isDetailModalVisible = signal<boolean>(false);
 
+  // Estado del modal de confirmación para mover a la papelera
+  readonly isTrashModalVisible = signal<boolean>(false);
+  readonly resourceToTrash = signal<{
+    id: string;
+    name: string;
+    type: 'folder' | 'file';
+  } | null>(null);
+
   // Notificación de éxito
   readonly successNotification = signal<string | null>(null);
 
@@ -244,6 +252,61 @@ export class MisArchivos implements OnInit {
     this.isDetailModalVisible.set(false);
     this.selectedFolderDetail.set(null);
     this.selectedFileDetail.set(null);
+  }
+
+  // DESCARGAR ARCHIVO (solo archivos que no estén en la papelera)
+  downloadFile(file: FileItem): void {
+    if (file.isTrash) {
+      this.resourceService.error.set(
+        'No es posible descargar un archivo que se encuentra en la papelera',
+      );
+      return;
+    }
+
+    this.resourceService.downloadFile(file).subscribe({
+      next: (res) => {
+        const downloadedName = res.data?.fileName || file.name;
+        this.showNotification(`Archivo "${downloadedName}" descargado exitosamente`);
+      },
+      error: (err) => {
+        const msg = err?.error?.mensaje || 'Error al descargar el archivo desde el servidor';
+        this.resourceService.error.set(msg);
+      },
+    });
+  }
+
+  // MOVER A LA PAPELERA (BORRADO LÓGICO)
+  openTrashModal(resource: FolderItem | FileItem, type: 'folder' | 'file'): void {
+    this.resourceToTrash.set({
+      id: resource._id,
+      name: resource.name,
+      type,
+    });
+    this.isTrashModalVisible.set(true);
+  }
+
+  closeTrashModal(): void {
+    this.isTrashModalVisible.set(false);
+    this.resourceToTrash.set(null);
+  }
+
+  confirmMoveToTrash(): void {
+    const target = this.resourceToTrash();
+    if (!target) return;
+
+    this.resourceService.toggleTrash(target.id, true).subscribe({
+      next: () => {
+        const label = target.type === 'folder' ? 'Carpeta' : 'Archivo';
+        this.closeTrashModal();
+        this.closeDetailsModal();
+        this.showNotification(`${label} "${target.name}" movido a la papelera`);
+      },
+      error: (err) => {
+        const msg = err?.error?.mensaje || 'Error al mover el recurso a la papelera';
+        this.resourceService.error.set(msg);
+        this.closeTrashModal();
+      },
+    });
   }
 
   // Notificación temporal

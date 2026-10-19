@@ -6,6 +6,7 @@ import {
   BreadcrumbItem,
   CreateFileRequest,
   CreateFolderRequest,
+  FileDownloadResponse,
   FileItem,
   FolderItem,
   MisArchivosResponse,
@@ -33,6 +34,14 @@ export class ResourceService {
   readonly sharedBreadcrumbs = signal<BreadcrumbItem[]>([]);
   readonly isSharedLoading = signal<boolean>(false);
   readonly sharedError = signal<string | null>(null);
+
+  // Estado reactivo centralizado para "Papelera"
+  readonly trashFolders = signal<FolderItem[]>([]);
+  readonly trashFiles = signal<FileItem[]>([]);
+  readonly trashCurrentFolder = signal<FolderItem | null>(null);
+  readonly trashBreadcrumbs = signal<BreadcrumbItem[]>([]);
+  readonly isTrashLoading = signal<boolean>(false);
+  readonly trashError = signal<string | null>(null);
 
   /**
    * Carga los archivos y carpetas del usuario según el folderId (raíz si es null o vacío)
@@ -102,6 +111,39 @@ export class ResourceService {
   }
 
   /**
+   * Carga los archivos y carpetas en la papelera (isTrash: true) del usuario autenticado
+   * @param folderId ID opcional de la carpeta en papelera a explorar
+   */
+  loadPapelera(folderId?: string | null): Observable<MisArchivosResponse> {
+    this.isTrashLoading.set(true);
+    this.trashError.set(null);
+
+    let params = new HttpParams();
+    if (folderId) {
+      params = params.set('folderId', folderId);
+    }
+
+    return this.http.get<MisArchivosResponse>(`${this.apiUrl}/papelera`, { params }).pipe(
+      tap((res) => {
+        if (res.status === 'success' && res.data) {
+          this.trashCurrentFolder.set(res.data.currentFolder);
+          this.trashBreadcrumbs.set(res.data.breadcrumbs || []);
+          this.trashFolders.set(res.data.folders || []);
+          this.trashFiles.set(res.data.files || []);
+        }
+        this.isTrashLoading.set(false);
+      }),
+      catchError((err) => {
+        const errorMsg =
+          err?.error?.mensaje || 'Error al cargar los recursos de la papelera desde el servidor';
+        this.trashError.set(errorMsg);
+        this.isTrashLoading.set(false);
+        return throwError(() => err);
+      }),
+    );
+  }
+
+  /**
    * Crea una nueva carpeta en el backend y refresca la vista
    * @param data Datos de la carpeta a crear
    */
@@ -134,6 +176,75 @@ export class ResourceService {
       }),
       catchError((err) => {
         this.isLoading.set(false);
+        return throwError(() => err);
+      }),
+    );
+  }
+
+  /**
+   * Descarga un archivo activo (no en papelera) con su respectiva extensión y contenido
+   * @param file Archivo a descargar
+   */
+  downloadFile(file: FileItem): Observable<FileDownloadResponse> {
+    if (file.isTrash) {
+      return throwError(
+        () => new Error('No es posible descargar un archivo que se encuentra en la papelera'),
+      );
+    }
+
+    return this.http.get<FileDownloadResponse>(`${this.apiUrl}/files/${file._id}/download`).pipe(
+      tap((res) => {
+        if (res.status === 'success' && res.data) {
+          const { fileName, content, mimeType } = res.data;
+          const blob = new Blob([content ?? ''], {
+            type: mimeType || 'text/plain; charset=utf-8',
+          });
+          const url = window.URL.createObjectURL(blob);
+          const anchor = document.createElement('a');
+          anchor.href = url;
+          anchor.download = fileName;
+          document.body.appendChild(anchor);
+          anchor.click();
+          document.body.removeChild(anchor);
+          window.URL.revokeObjectURL(url);
+        }
+      }),
+    );
+  }
+
+  /**
+   * Mueve un recurso (archivo o carpeta) a la papelera (moveToTrash: true) o lo restaura (moveToTrash: false)
+   * @param resourceId ID del archivo o carpeta
+   * @param moveToTrash true para enviar a papelera, false para restaurar
+   */
+  toggleTrash(resourceId: string, moveToTrash: boolean): Observable<any> {
+    return this.http.put<any>(`${this.apiUrl}/${resourceId}/trash`, { moveToTrash }).pipe(
+      tap(() => {
+        if (moveToTrash) {
+          const currentId = this.currentFolder()?._id || null;
+          this.loadMisArchivos(currentId).subscribe();
+        } else {
+          const currentTrashId = this.trashCurrentFolder()?._id || null;
+          this.loadPapelera(currentTrashId).subscribe();
+        }
+      }),
+      catchError((err) => {
+        return throwError(() => err);
+      }),
+    );
+  }
+
+  /**
+   * Elimina físicamente (de forma permanente) un archivo o carpeta que se encuentre en la papelera
+   * @param resourceId ID del archivo o carpeta en la papelera
+   */
+  deleteResourcePermanently(resourceId: string): Observable<any> {
+    return this.http.delete<any>(`${this.apiUrl}/${resourceId}`).pipe(
+      tap(() => {
+        const currentTrashId = this.trashCurrentFolder()?._id || null;
+        this.loadPapelera(currentTrashId).subscribe();
+      }),
+      catchError((err) => {
         return throwError(() => err);
       }),
     );

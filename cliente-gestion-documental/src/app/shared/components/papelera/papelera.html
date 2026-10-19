@@ -1,0 +1,711 @@
+<!-- Alerta de Notificación Temporal -->
+@if (successNotification()) {
+  <div
+    class="alert alert-success alert-dismissible fade show d-flex align-items-center shadow-sm mb-4 border-0"
+    role="alert"
+  >
+    <i class="bi bi-check-circle-fill me-2 fs-5"></i>
+    <div>{{ successNotification() }}</div>
+    <button
+      type="button"
+      class="btn-close"
+      aria-label="Cerrar"
+      (click)="successNotification.set(null)"
+    ></button>
+  </div>
+}
+
+<!-- Alerta de Error de Servicio -->
+@if (serviceError()) {
+  <div
+    class="alert alert-danger alert-dismissible fade show d-flex align-items-center shadow-sm mb-4 border-0"
+    role="alert"
+  >
+    <i class="bi bi-exclamation-triangle-fill me-2 fs-5"></i>
+    <div>{{ serviceError() }}</div>
+    <button
+      type="button"
+      class="btn-close"
+      aria-label="Cerrar"
+      (click)="resourceService.trashError.set(null)"
+    ></button>
+  </div>
+}
+
+<!-- Encabezado de la Vista: Breadcrumbs, Título y Acción de Actualizar -->
+<header class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-3">
+  <div>
+    <nav aria-label="breadcrumb">
+      <ol class="breadcrumb mb-1 small">
+        <li class="breadcrumb-item">
+          <a
+            href="javascript:void(0)"
+            class="text-decoration-none fw-semibold"
+            [class.text-primary]="breadcrumbs().length > 0"
+            [class.text-dark]="breadcrumbs().length === 0"
+            (click)="goToRoot()"
+          >
+            <i class="bi bi-trash3 me-1"></i>Papelera
+          </a>
+        </li>
+        @for (crumb of breadcrumbs(); track crumb._id; let last = $last) {
+          @if (!last) {
+            <li class="breadcrumb-item">
+              <a
+                href="javascript:void(0)"
+                class="text-decoration-none fw-semibold text-primary"
+                (click)="goToBreadcrumb(crumb)"
+              >
+                {{ crumb.name }}
+              </a>
+            </li>
+          } @else {
+            <li class="breadcrumb-item active text-dark fw-bold" aria-current="page">
+              {{ crumb.name }}
+            </li>
+          }
+        }
+      </ol>
+    </nav>
+    <h1 class="h3 fw-bold text-dark mb-0">
+      {{ currentFolder() ? currentFolder()?.name : 'Papelera de Reciclaje' }}
+    </h1>
+  </div>
+
+  <!-- Botón de actualizar vista -->
+  <div class="d-flex align-items-center gap-2">
+    <button
+      type="button"
+      class="btn btn-outline-primary d-flex align-items-center rounded-pill px-3 py-2 shadow-sm fw-medium"
+      (click)="refreshView()"
+      [disabled]="isLoading()"
+    >
+      <i class="bi bi-arrow-clockwise me-2 fs-5"></i>
+      <span>Actualizar</span>
+    </button>
+  </div>
+</header>
+
+<!-- BARRA DE BÚSQUEDA Y FILTROS -->
+<section class="card border-0 shadow-sm rounded-3 p-3 mb-4 bg-white">
+  <div class="row g-3 align-items-center">
+    <!-- Buscador por Texto -->
+    <div class="col-12 col-md-5">
+      <div class="input-group">
+        <span class="input-group-text bg-light border-end-0 text-muted">
+          <i class="bi bi-search"></i>
+        </span>
+        <input
+          type="text"
+          class="form-control border-start-0 bg-light"
+          placeholder="Buscar archivos o carpetas en la papelera..."
+          [ngModel]="searchTerm()"
+          (ngModelChange)="searchTerm.set($event)"
+        />
+        @if (searchTerm()) {
+          <button class="btn btn-light border-start-0" type="button" (click)="searchTerm.set('')">
+            <i class="bi bi-x-lg text-muted small"></i>
+          </button>
+        }
+      </div>
+    </div>
+
+    <!-- Filtro por Tipo -->
+    <div class="col-6 col-md-3">
+      <div class="input-group">
+        <span class="input-group-text bg-light text-muted small">
+          <i class="bi bi-funnel"></i>
+        </span>
+        <select
+          class="form-select bg-light small"
+          [ngModel]="typeFilter()"
+          (ngModelChange)="typeFilter.set($event)"
+        >
+          <option value="all">Todos los recursos</option>
+          <option value="folders">Solo Carpetas</option>
+          <option value="txt">Archivos de Texto (.txt)</option>
+          <option value="md">Archivos Markdown (.md)</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- Ordenación -->
+    <div class="col-6 col-md-2">
+      <div class="input-group">
+        <span class="input-group-text bg-light text-muted small">
+          <i class="bi bi-sort-down"></i>
+        </span>
+        <select
+          class="form-select bg-light small"
+          [ngModel]="sortBy()"
+          (ngModelChange)="sortBy.set($event)"
+        >
+          <option value="date">Por Fecha</option>
+          <option value="name">Por Nombre (A-Z)</option>
+          <option value="size">Por Tamaño</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- Conmutador de Modo de Vista (Cuadrícula / Lista) -->
+    <div class="col-12 col-md-2 d-flex justify-content-md-end">
+      <div class="btn-group shadow-sm w-100 w-md-auto" role="group">
+        <button
+          type="button"
+          class="btn btn-sm"
+          [class.btn-primary]="viewMode() === 'grid'"
+          [class.btn-outline-secondary]="viewMode() !== 'grid'"
+          (click)="viewMode.set('grid')"
+          title="Vista en cuadrícula"
+        >
+          <i class="bi bi-grid-fill me-1"></i> Cuadrícula
+        </button>
+        <button
+          type="button"
+          class="btn btn-sm"
+          [class.btn-primary]="viewMode() === 'table'"
+          [class.btn-outline-secondary]="viewMode() !== 'table'"
+          (click)="viewMode.set('table')"
+          title="Vista en lista"
+        >
+          <i class="bi bi-list-ul me-1"></i> Lista
+        </button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- CONTENIDO: SPINNER DE CARGA O RECURSOS EN PAPELERA -->
+@if (isLoading()) {
+  <div class="card border-0 shadow-sm rounded-3 bg-white p-5 text-center my-4">
+    <div class="spinner-border text-primary mb-3" role="status" style="width: 3rem; height: 3rem">
+      <span class="visually-hidden">Cargando...</span>
+    </div>
+    <h3 class="h6 fw-semibold text-dark mb-1">Cargando recursos de tu papelera...</h3>
+    <p class="text-muted small mb-0">Por favor, espera un momento</p>
+  </div>
+} @else {
+  <!-- SECCIÓN DE CARPETAS EN PAPELERA -->
+  @if (filteredFolders().length > 0) {
+    <section class="mb-4">
+      <h2 class="h6 fw-bold text-secondary text-uppercase mb-3 tracking-wide">
+        <i class="bi bi-folder-fill me-1 text-warning"></i>
+        Carpetas ({{ filteredFolders().length }})
+      </h2>
+      <div class="row row-cols-1 row-cols-sm-2 row-cols-md-3 row-cols-xl-4 g-3">
+        @for (folder of filteredFolders(); track folder._id) {
+          <div class="col">
+            <div
+              class="card h-100 border-0 shadow-sm rounded-3 folder-card bg-white p-3 d-flex flex-column justify-content-between"
+            >
+              <div>
+                <div class="d-flex align-items-center justify-content-between mb-2">
+                  <div
+                    class="d-flex align-items-center gap-2 text-truncate cursor-pointer"
+                    (click)="openFolder(folder)"
+                    title="Abrir carpeta"
+                  >
+                    <i class="bi bi-folder-fill text-warning fs-3"></i>
+                    <span class="fw-semibold text-dark text-truncate">{{ folder.name }}</span>
+                  </div>
+                  <div class="d-flex align-items-center gap-1">
+                    <button
+                      type="button"
+                      class="btn btn-sm btn-outline-success border-0 rounded-circle"
+                      (click)="restoreResource(folder, 'folder')"
+                      title="Restaurar carpeta"
+                    >
+                      <i class="bi bi-arrow-counterclockwise"></i>
+                    </button>
+                    <button
+                      type="button"
+                      class="btn btn-sm btn-outline-danger border-0 rounded-circle"
+                      (click)="openPermanentDeleteModal(folder, 'folder')"
+                      title="Eliminar permanentemente"
+                    >
+                      <i class="bi bi-trash3"></i>
+                    </button>
+                    <button
+                      type="button"
+                      class="btn btn-sm btn-outline-secondary border-0 rounded-circle"
+                      (click)="openFolderDetails(folder)"
+                      title="Ver detalles"
+                    >
+                      <i class="bi bi-info-circle"></i>
+                    </button>
+                  </div>
+                </div>
+
+                <div
+                  class="d-flex align-items-center justify-content-between small text-muted mb-1"
+                >
+                  <span class="badge bg-danger-subtle text-danger-emphasis rounded-pill">
+                    <i class="bi bi-trash3 me-1"></i>En papelera
+                  </span>
+                  <span>{{ formatDate(folder.trashedAt || folder.updatedAt) }}</span>
+                </div>
+              </div>
+
+              <div
+                class="d-flex justify-content-between align-items-center text-muted small mt-2 pt-2 border-top"
+              >
+                <span class="text-truncate me-2">{{ folder.path }}</span>
+                <span
+                  class="cursor-pointer text-primary fw-medium flex-shrink-0"
+                  (click)="openFolder(folder)"
+                >
+                  Abrir <i class="bi bi-arrow-right-short"></i>
+                </span>
+              </div>
+            </div>
+          </div>
+        }
+      </div>
+    </section>
+  }
+
+  <!-- SECCIÓN DE ARCHIVOS EN PAPELERA -->
+  @if (filteredFiles().length > 0) {
+    <section class="mb-4">
+      <h2 class="h6 fw-bold text-secondary text-uppercase mb-3 tracking-wide">
+        <i class="bi bi-file-earmark-text me-1 text-primary"></i>
+        Archivos ({{ filteredFiles().length }})
+      </h2>
+
+      <!-- VISTA EN CUADRÍCULA -->
+      @if (viewMode() === 'grid') {
+        <div class="row row-cols-1 row-cols-sm-2 row-cols-md-3 row-cols-xl-4 g-3">
+          @for (file of filteredFiles(); track file._id) {
+            <div class="col">
+              <div
+                class="card h-100 border-0 shadow-sm rounded-3 file-card bg-white p-3 d-flex flex-column justify-content-between"
+              >
+                <div>
+                  <div class="d-flex align-items-start justify-content-between mb-2">
+                    <div class="d-flex align-items-center gap-2">
+                      @if (file.extension === 'md' || file.extension === '.md') {
+                        <i class="bi bi-markdown-fill text-info fs-2" title="Archivo Markdown"></i>
+                      } @else {
+                        <i
+                          class="bi bi-file-earmark-text-fill text-primary fs-2"
+                          title="Archivo de Texto"
+                        ></i>
+                      }
+                      <div class="d-flex flex-wrap gap-1">
+                        <span
+                          class="badge"
+                          [class.bg-info-subtle]="
+                            file.extension === 'md' || file.extension === '.md'
+                          "
+                          [class.text-info-emphasis]="
+                            file.extension === 'md' || file.extension === '.md'
+                          "
+                          [class.bg-primary-subtle]="
+                            file.extension === 'txt' || file.extension === '.txt'
+                          "
+                          [class.text-primary-emphasis]="
+                            file.extension === 'txt' || file.extension === '.txt'
+                          "
+                        >
+                          {{ normalizeExtension(file.extension) }}
+                        </span>
+                        <span class="badge bg-danger-subtle text-danger-emphasis rounded-pill">
+                          <i class="bi bi-trash3 me-1"></i>En papelera
+                        </span>
+                      </div>
+                    </div>
+
+                    <div class="d-flex align-items-center gap-1">
+                      <button
+                        type="button"
+                        class="btn btn-sm btn-outline-success border-0 rounded-circle"
+                        (click)="restoreResource(file, 'file')"
+                        title="Restaurar archivo"
+                      >
+                        <i class="bi bi-arrow-counterclockwise"></i>
+                      </button>
+                      <button
+                        type="button"
+                        class="btn btn-sm btn-outline-danger border-0 rounded-circle"
+                        (click)="openPermanentDeleteModal(file, 'file')"
+                        title="Eliminar permanentemente"
+                      >
+                        <i class="bi bi-trash3"></i>
+                      </button>
+                      <button
+                        type="button"
+                        class="btn btn-sm btn-outline-secondary border-0 rounded-circle"
+                        (click)="openFileDetails(file)"
+                        title="Ver detalles"
+                      >
+                        <i class="bi bi-info-circle"></i>
+                      </button>
+                    </div>
+                  </div>
+
+                  <h3 class="h6 fw-semibold text-dark text-truncate mb-1" title="{{ file.name }}">
+                    {{ file.name }}
+                  </h3>
+                </div>
+
+                <div
+                  class="d-flex justify-content-between align-items-center text-muted small mt-3 pt-2 border-top"
+                >
+                  <span>{{ formatFileSize(file.sizeBytes) }}</span>
+                  <span>{{ formatDate(file.trashedAt || file.updatedAt) }}</span>
+                </div>
+              </div>
+            </div>
+          }
+        </div>
+      }
+
+      <!-- VISTA EN LISTA / TABLA -->
+      @if (viewMode() === 'table') {
+        <div class="card border-0 shadow-sm rounded-3 bg-white overflow-hidden">
+          <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+              <thead class="table-light text-secondary small text-uppercase">
+                <tr>
+                  <th scope="col" class="ps-3 py-3">Nombre</th>
+                  <th scope="col">Estado</th>
+                  <th scope="col">Tipo</th>
+                  <th scope="col">Tamaño</th>
+                  <th scope="col">Fecha de Eliminación</th>
+                  <th scope="col" class="text-end pe-3">Acciones</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (file of filteredFiles(); track file._id) {
+                  <tr>
+                    <td class="ps-3">
+                      <div class="d-flex align-items-center gap-2">
+                        @if (file.extension === 'md' || file.extension === '.md') {
+                          <i class="bi bi-markdown-fill text-info fs-5"></i>
+                        } @else {
+                          <i class="bi bi-file-earmark-text-fill text-primary fs-5"></i>
+                        }
+                        <span class="fw-medium text-dark">{{ file.name }}</span>
+                      </div>
+                    </td>
+                    <td>
+                      <span class="badge bg-danger-subtle text-danger-emphasis rounded-pill">
+                        <i class="bi bi-trash3 me-1"></i>En papelera
+                      </span>
+                    </td>
+                    <td>
+                      <span
+                        class="badge"
+                        [class.bg-info-subtle]="file.extension === 'md' || file.extension === '.md'"
+                        [class.text-info-emphasis]="
+                          file.extension === 'md' || file.extension === '.md'
+                        "
+                        [class.bg-primary-subtle]="
+                          file.extension === 'txt' || file.extension === '.txt'
+                        "
+                        [class.text-primary-emphasis]="
+                          file.extension === 'txt' || file.extension === '.txt'
+                        "
+                      >
+                        {{ normalizeExtension(file.extension) }}
+                      </span>
+                    </td>
+                    <td class="text-muted small">{{ formatFileSize(file.sizeBytes) }}</td>
+                    <td class="text-muted small">
+                      {{ formatDate(file.trashedAt || file.updatedAt) }}
+                    </td>
+                    <td class="text-end pe-3">
+                      <div class="d-inline-flex align-items-center gap-2">
+                        <button
+                          type="button"
+                          class="btn btn-sm btn-success rounded-pill px-3"
+                          (click)="restoreResource(file, 'file')"
+                          title="Restaurar archivo"
+                        >
+                          <i class="bi bi-arrow-counterclockwise me-1"></i> Restaurar
+                        </button>
+                        <button
+                          type="button"
+                          class="btn btn-sm btn-outline-danger rounded-pill px-3"
+                          (click)="openPermanentDeleteModal(file, 'file')"
+                          title="Eliminar permanentemente"
+                        >
+                          <i class="bi bi-trash3 me-1"></i> Eliminar
+                        </button>
+                        <button
+                          type="button"
+                          class="btn btn-sm btn-outline-primary rounded-pill px-3"
+                          (click)="openFileDetails(file)"
+                        >
+                          <i class="bi bi-info-circle me-1"></i> Detalles
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        </div>
+      }
+    </section>
+  }
+
+  <!-- ESTADO VACÍO (EMPTY STATE) -->
+  @if (filteredFolders().length === 0 && filteredFiles().length === 0) {
+    <div class="card border-0 shadow-sm rounded-3 bg-white p-5 text-center my-4">
+      <div class="mb-3">
+        @if (searchTerm()) {
+          <i class="bi bi-search text-muted display-4"></i>
+        } @else {
+          <i class="bi bi-trash3 text-danger display-4"></i>
+        }
+      </div>
+      <h3 class="h5 fw-bold text-dark mb-2">
+        {{
+          searchTerm()
+            ? 'Sin resultados para la búsqueda'
+            : currentFolder()
+              ? 'Esta carpeta en la papelera está vacía'
+              : 'Tu papelera de reciclaje está vacía'
+        }}
+      </h3>
+      <p class="text-muted small mb-0 mx-auto empty-state">
+        @if (searchTerm()) {
+          No se encontraron archivos o carpetas en la papelera que coincidan con "{{
+            searchTerm()
+          }}". Intenta con otro término.
+        } @else {
+          Los archivos y carpetas que elimines (borrado lógico) se trasladarán aquí para que puedas
+          consultarlos o restaurarlos.
+        }
+      </p>
+    </div>
+  }
+}
+
+<!-- MODAL BOOTSTRAP: DETALLES DEL RECURSO EN PAPELERA -->
+@if (isDetailModalVisible() && (selectedFolderDetail() || selectedFileDetail())) {
+  <div class="modal-backdrop fade show"></div>
+  <div
+    class="modal fade show d-block"
+    tabindex="-1"
+    role="dialog"
+    aria-modal="true"
+    (click)="closeDetailsModal()"
+  >
+    <div class="modal-dialog modal-dialog-centered" (click)="$event.stopPropagation()">
+      <div class="modal-content border-0 shadow-lg rounded-3">
+        <div class="modal-header border-bottom py-3">
+          <div class="d-flex align-items-center gap-2">
+            @if (selectedFolderDetail()) {
+              <i class="bi bi-folder-fill text-warning fs-4"></i>
+              <h5 class="modal-title h6 fw-bold mb-0">Detalles de Carpeta en Papelera</h5>
+            } @else if (
+              selectedFileDetail()?.extension === '.md' || selectedFileDetail()?.extension === 'md'
+            ) {
+              <i class="bi bi-markdown-fill text-info fs-4"></i>
+              <h5 class="modal-title h6 fw-bold mb-0">Detalles de Archivo Markdown</h5>
+            } @else {
+              <i class="bi bi-file-earmark-text-fill text-primary fs-4"></i>
+              <h5 class="modal-title h6 fw-bold mb-0">Detalles de Archivo de Texto</h5>
+            }
+          </div>
+          <button
+            type="button"
+            class="btn-close"
+            aria-label="Cerrar"
+            (click)="closeDetailsModal()"
+          ></button>
+        </div>
+
+        <div class="modal-body p-4">
+          @if (selectedFolderDetail(); as folder) {
+            <!-- Detalles de Carpeta -->
+            <dl class="row mb-0 small">
+              <dt class="col-sm-4 text-muted">Nombre:</dt>
+              <dd class="col-sm-8 fw-semibold text-dark">{{ folder.name }}</dd>
+
+              <dt class="col-sm-4 text-muted">Tipo:</dt>
+              <dd class="col-sm-8">
+                <span class="badge bg-warning-subtle text-warning-emphasis">Carpeta</span>
+              </dd>
+
+              <dt class="col-sm-4 text-muted">Estado:</dt>
+              <dd class="col-sm-8">
+                <span class="badge bg-danger-subtle text-danger-emphasis rounded-pill">
+                  En papelera
+                </span>
+              </dd>
+
+              <dt class="col-sm-4 text-muted">Ruta Original:</dt>
+              <dd class="col-sm-8 text-break">
+                <code>{{ folder.path }}</code>
+              </dd>
+
+              <dt class="col-sm-4 text-muted">Fecha Eliminación:</dt>
+              <dd class="col-sm-8">{{ formatDate(folder.trashedAt || folder.updatedAt) }}</dd>
+
+              <dt class="col-sm-4 text-muted">Fecha Creación:</dt>
+              <dd class="col-sm-8">{{ formatDate(folder.createdAt) }}</dd>
+            </dl>
+          } @else if (selectedFileDetail(); as file) {
+            <!-- Detalles de Archivo -->
+            <dl class="row mb-0 small">
+              <dt class="col-sm-4 text-muted">Nombre:</dt>
+              <dd class="col-sm-8 fw-semibold text-dark">{{ file.name }}</dd>
+
+              <dt class="col-sm-4 text-muted">Extensión:</dt>
+              <dd class="col-sm-8">
+                <span class="badge bg-primary-subtle text-primary-emphasis">
+                  {{ normalizeExtension(file.extension) }}
+                </span>
+              </dd>
+
+              <dt class="col-sm-4 text-muted">Tamaño:</dt>
+              <dd class="col-sm-8 fw-bold">{{ formatFileSize(file.sizeBytes) }}</dd>
+
+              <dt class="col-sm-4 text-muted">Ubicación anterior:</dt>
+              <dd class="col-sm-8 text-break">
+                <code>{{ file.path || 'Raíz (/)' }}</code>
+              </dd>
+
+              <dt class="col-sm-4 text-muted">Estado:</dt>
+              <dd class="col-sm-8">
+                <span class="badge bg-danger-subtle text-danger-emphasis rounded-pill">
+                  En papelera
+                </span>
+              </dd>
+
+              @if (file.tags && file.tags.length > 0) {
+                <dt class="col-sm-4 text-muted">Etiquetas:</dt>
+                <dd class="col-sm-8">
+                  <div class="d-flex flex-wrap gap-1">
+                    @for (tag of file.tags; track tag) {
+                      <span class="badge bg-light text-secondary border">#{{ tag }}</span>
+                    }
+                  </div>
+                </dd>
+              }
+
+              <dt class="col-sm-4 text-muted">Fecha Eliminación:</dt>
+              <dd class="col-sm-8">{{ formatDate(file.trashedAt || file.updatedAt) }}</dd>
+
+              <dt class="col-sm-4 text-muted">Fecha Creación:</dt>
+              <dd class="col-sm-8">{{ formatDate(file.createdAt) }}</dd>
+            </dl>
+          }
+        </div>
+
+        <div class="modal-footer border-top py-2">
+          @if (selectedFolderDetail(); as folder) {
+            <button
+              type="button"
+              class="btn btn-outline-danger btn-sm rounded-pill px-3"
+              (click)="openPermanentDeleteModal(folder, 'folder')"
+            >
+              <i class="bi bi-trash3 me-1"></i> Eliminar definitivamente
+            </button>
+            <button
+              type="button"
+              class="btn btn-success btn-sm rounded-pill px-3"
+              (click)="restoreResource(folder, 'folder')"
+            >
+              <i class="bi bi-arrow-counterclockwise me-1"></i> Restaurar carpeta
+            </button>
+          }
+          @if (selectedFileDetail(); as file) {
+            <button
+              type="button"
+              class="btn btn-outline-danger btn-sm rounded-pill px-3"
+              (click)="openPermanentDeleteModal(file, 'file')"
+            >
+              <i class="bi bi-trash3 me-1"></i> Eliminar definitivamente
+            </button>
+            <button
+              type="button"
+              class="btn btn-success btn-sm rounded-pill px-3"
+              (click)="restoreResource(file, 'file')"
+            >
+              <i class="bi bi-arrow-counterclockwise me-1"></i> Restaurar archivo
+            </button>
+          }
+          <button
+            type="button"
+            class="btn btn-secondary btn-sm rounded-pill px-3"
+            (click)="closeDetailsModal()"
+          >
+            Cerrar
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+}
+
+<!-- MODAL BOOTSTRAP: CONFIRMAR ELIMINACIÓN FÍSICA (PERMANENTE) -->
+@if (isPermanentDeleteModalVisible() && resourceToDelete(); as target) {
+  <div class="modal-backdrop fade show"></div>
+  <div
+    class="modal fade show d-block"
+    tabindex="-1"
+    role="dialog"
+    aria-modal="true"
+    (click)="closePermanentDeleteModal()"
+  >
+    <div class="modal-dialog modal-dialog-centered" (click)="$event.stopPropagation()">
+      <div class="modal-content border-0 shadow-lg rounded-3">
+        <div class="modal-header border-bottom py-3">
+          <div class="d-flex align-items-center gap-2">
+            <i class="bi bi-exclamation-triangle-fill text-danger fs-4"></i>
+            <h5 class="modal-title h6 fw-bold mb-0">Eliminar Permanentemente</h5>
+          </div>
+          <button
+            type="button"
+            class="btn-close"
+            aria-label="Cerrar"
+            (click)="closePermanentDeleteModal()"
+          ></button>
+        </div>
+
+        <div class="modal-body p-4">
+          <p class="mb-2 text-dark">
+            ¿Estás seguro de que deseas eliminar permanentemente
+            {{ target.type === 'folder' ? 'la carpeta' : 'el archivo' }}
+            <strong>"{{ target.name }}"</strong>?
+          </p>
+          @if (target.type === 'folder') {
+            <div class="alert alert-danger py-2 px-3 small border-0 mb-0">
+              <i class="bi bi-exclamation-octagon-fill me-1"></i>
+              <strong>Acción irreversible:</strong> Se eliminarán de forma definitiva esta carpeta,
+              todas sus subcarpetas y todos los archivos contenidos en ella. No podrás recuperarlos.
+            </div>
+          } @else {
+            <div class="alert alert-danger py-2 px-3 small border-0 mb-0">
+              <i class="bi bi-exclamation-octagon-fill me-1"></i>
+              <strong>Acción irreversible:</strong> El archivo será borrado físicamente de la base
+              de datos y no podrá ser recuperado.
+            </div>
+          }
+        </div>
+
+        <div class="modal-footer border-top py-2">
+          <button
+            type="button"
+            class="btn btn-light btn-sm rounded-pill px-3"
+            (click)="closePermanentDeleteModal()"
+          >
+            Cancelar
+          </button>
+          <button
+            type="button"
+            class="btn btn-danger btn-sm rounded-pill px-3"
+            (click)="confirmPermanentDelete()"
+          >
+            <i class="bi bi-trash3 me-1"></i> Eliminar definitivamente
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+}
