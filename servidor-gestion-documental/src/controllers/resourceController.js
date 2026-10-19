@@ -1,4 +1,5 @@
 const resourceService = require("../services/resourceService");
+const myFilesService = require("../services/myFilesService");
 
 /**
  * GET /api/resources/mis-archivos
@@ -11,7 +12,7 @@ const getMyFiles = async (req, res, next) => {
     const userId = req.user._id || req.user.id;
     const { folderId } = req.query;
 
-    const data = await resourceService.getMyFiles(userId, folderId);
+    const data = await myFilesService.getMyFiles(userId, folderId);
 
     return res.status(200).json({
       status: "success",
@@ -31,7 +32,7 @@ const createFolder = async (req, res, next) => {
     const userId = req.user._id || req.user.id;
     const { name, parentId } = req.body;
 
-    const folder = await resourceService.createFolder(userId, {
+    const folder = await myFilesService.createFolder(userId, {
       name,
       parentId,
     });
@@ -55,7 +56,7 @@ const createFile = async (req, res, next) => {
     const userId = req.user._id || req.user.id;
     const { name, extension, content, folderId, tags } = req.body;
 
-    const file = await resourceService.createFile(userId, {
+    const file = await myFilesService.createFile(userId, {
       name,
       extension,
       content,
