@@ -118,6 +118,37 @@ const getTrash = async (req, res, next) => {
 };
 
 /**
+ * PUT /api/resources/:id/trash
+ * Mueve un recurso (carpeta o archivo) a la papelera (isTrash: true) o lo restaura (isTrash: false).
+ * Body params:
+ * - moveToTrash: booleano que indica si mover a papelera (true) o restaurar (false)
+ */
+const toggleTrash = async (req, res, next) => {
+  try {
+    const userId = req.user._id || req.user.id;
+    const { id } = req.params;
+
+    const { moveToTrash } = req.body;
+
+    const updatedResource = await resourceService.moveToTrashOrRestore(
+      userId,
+      id,
+      moveToTrash,
+    );
+
+    return res.status(200).json({
+      status: "success",
+      mensaje: moveToTrash
+        ? "Recurso movido a la papelera"
+        : "Recurso restaurado",
+      data: updatedResource,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
  * GET /api/resources/files/:id/download
  * Descarga un archivo activo (isTrash: false) con su nombre, extensión y contenido
  */
@@ -138,10 +169,10 @@ const downloadFile = async (req, res, next) => {
 };
 
 module.exports = {
-  getMyFiles,  
+  getMyFiles,
   getSharedWithMe,
   getTrash,
-  getPapelera: getTrash,
+  toggleTrash,
   downloadFile,
   createFolder,
   createFile,

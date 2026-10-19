@@ -24,6 +24,9 @@ export class Papelera implements OnInit {
   readonly selectedFileDetail = signal<FileItem | null>(null);
   readonly isDetailModalVisible = signal<boolean>(false);
 
+  // Notificación de éxito
+  readonly successNotification = signal<string | null>(null);
+
   // Exposición de señales del servicio para Papelera
   readonly isLoading = this.resourceService.isTrashLoading;
   readonly currentFolder = this.resourceService.trashCurrentFolder;
@@ -133,6 +136,29 @@ export class Papelera implements OnInit {
     this.isDetailModalVisible.set(false);
     this.selectedFolderDetail.set(null);
     this.selectedFileDetail.set(null);
+  }
+
+  // RESTAURAR RECURSO DESDE LA PAPELERA
+  restoreResource(resource: FolderItem | FileItem, type: 'folder' | 'file'): void {
+    this.resourceService.toggleTrash(resource._id, false).subscribe({
+      next: () => {
+        const label = type === 'folder' ? 'Carpeta' : 'Archivo';
+        const gender = type === 'folder' ? 'restaurada' : 'restaurado';
+        this.closeDetailsModal();
+        this.showNotification(`${label} "${resource.name}" ${gender} exitosamente`);
+      },
+      error: (err) => {
+        const msg = err?.error?.mensaje || 'Error al restaurar el recurso desde la papelera';
+        this.resourceService.trashError.set(msg);
+      },
+    });
+  }
+
+  private showNotification(message: string): void {
+    this.successNotification.set(message);
+    setTimeout(() => {
+      this.successNotification.set(null);
+    }, 3500);
   }
 
   // Utilidades de formato

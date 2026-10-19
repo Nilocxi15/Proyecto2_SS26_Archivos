@@ -211,4 +211,26 @@ export class ResourceService {
       }),
     );
   }
+
+  /**
+   * Mueve un recurso (archivo o carpeta) a la papelera (moveToTrash: true) o lo restaura (moveToTrash: false)
+   * @param resourceId ID del archivo o carpeta
+   * @param moveToTrash true para enviar a papelera, false para restaurar
+   */
+  toggleTrash(resourceId: string, moveToTrash: boolean): Observable<any> {
+    return this.http.put<any>(`${this.apiUrl}/${resourceId}/trash`, { moveToTrash }).pipe(
+      tap(() => {
+        if (moveToTrash) {
+          const currentId = this.currentFolder()?._id || null;
+          this.loadMisArchivos(currentId).subscribe();
+        } else {
+          const currentTrashId = this.trashCurrentFolder()?._id || null;
+          this.loadPapelera(currentTrashId).subscribe();
+        }
+      }),
+      catchError((err) => {
+        return throwError(() => err);
+      }),
+    );
+  }
 }

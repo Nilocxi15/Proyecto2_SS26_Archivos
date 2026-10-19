@@ -588,6 +588,76 @@ const getTrash = async (userId, folderId = null) => {
 };
 
 /**
+ * Cambia el estado de un archivo o carpeta a "papelera" (isTrash: true) o lo restaura (isTrash: false)
+ * @param {string|mongoose.Types.ObjectId} userId - ID del usuario autenticado
+ * @param {string} resourceId - ID del archivo o carpeta a mover a la papelera o restaurar
+ * @param {boolean} moveToTrash - true para mover a la papelera, false para restaurar
+ */
+const moveToTrashOrRestore = async (userId, resourceId, moveToTrash) => {
+  if (!mongoose.Types.ObjectId.isValid(resourceId)) {
+    const error = new Error("El identificador del archivo no es válido");
+    error.statusCode = 400;
+    throw error;
+  }
+
+  const userObjectId = new mongoose.Types.ObjectId(userId);
+
+  // Intentar encontrar el recurso como carpeta
+  const folder = await Folder.findOne({
+    _id: resourceId,
+    ownerId: userObjectId,
+  });
+
+  const isTrashBool = Boolean(moveToTrash);
+  const trashedAtDate = isTrashBool ? new Date() : null;
+
+  if (folder) {
+    folder.isTrash = moveToTrash;
+    folder.trashedAt = moveToTrash ? new Date() : null;
+    await folder.save();
+
+    // Obtener todas las subcarpetas descendientes de esta carpeta
+    const subFolders = await Folder.find({
+      ownerId: userObjectId,
+      ancestors: folder._id,
+    }).select("_id");
+
+    const allFoldersIds = [folder._id, ...subFolders.map((sf) => sf._id)];
+
+    // Aplicar el mismo estado a subcarpetas y archivos contenidos
+    await Promise.all([
+      Folder.updateMany(
+        { _id: { $in: allFoldersIds }, ownerId: userObjectId },
+        { $set: { isTrash: isTrashBool, trashedAt: trashedAtDate } },
+      ),
+      File.updateMany(
+        { folderId: { $in: allFoldersIds }, ownerId: userObjectId },
+        { $set: { isTrash: isTrashBool, trashedAt: trashedAtDate } },
+      ),
+    ]);
+
+    return { type: "folder", resource: folder };
+  }
+
+  // Si no se encuentra como carpeta, intentar encontrarlo como archivo
+  const file = await File.findOne({
+    _id: resourceId,
+    ownerId: userObjectId,
+  }).select("-content");
+
+  if (file) {
+    file.isTrash = moveToTrash;
+    file.trashedAt = moveToTrash ? new Date() : null;
+    await file.save();
+    return { type: "file", resource: file };
+  }
+
+  const error = new Error("El recurso no existe o no pertenece al usuario");
+  error.statusCode = 404;
+  throw error;
+};
+
+/**
  * Obtiene un archivo para su descarga verificando permisos y que no esté en la papelera (isTrash: false)
  * @param {string|mongoose.Types.ObjectId} userId - ID del usuario autenticado
  * @param {string} fileId - ID del archivo a descargar
@@ -664,9 +734,7 @@ const getFileForDownload = async (userId, fileId) => {
     : `${cleanName}${suffix}`;
 
   const mimeType =
-    ext === "md"
-      ? "text/markdown; charset=utf-8"
-      : "text/plain; charset=utf-8";
+    ext === "md" ? "text/markdown; charset=utf-8" : "text/plain; charset=utf-8";
 
   return {
     fileName,
@@ -680,6 +748,7 @@ module.exports = {
   getMyFiles,
   getSharedWithMe,
   getTrash,
+  moveToTrashOrRestore,
   getFileForDownload,
   createFolder,
   createFile,

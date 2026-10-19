@@ -21,6 +21,9 @@ router.get(
 // Listar archivos y carpetas en la papelera del usuario autenticado
 router.get("/papelera", protectRoutes, resourceController.getTrash);
 
+// Mover un archivo o carpeta a la papelera o restaurarlo desde la papelera
+router.put("/:id/trash", protectRoutes, resourceController.toggleTrash);
+
 // Crear una nueva carpeta
 router.post("/folders", protectRoutes, resourceController.createFolder);
 
