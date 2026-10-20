@@ -43,7 +43,7 @@ const CreateUserDto = z.object({
     .number()
     .min(0, "El límite de almacenamiento no puede ser negativo")
     .optional()
-    .default(524288000),
+    .default(524288000), // 500 MB por defecto
 });
 
 /**

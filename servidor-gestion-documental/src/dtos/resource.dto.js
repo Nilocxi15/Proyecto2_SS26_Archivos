@@ -24,10 +24,7 @@ const FolderQueryDto = z.object({
     .optional()
     .refine(
       (val) =>
-        !val ||
-        val === "null" ||
-        val === "root" ||
-        objectIdRegex.test(val),
+        !val || val === "null" || val === "root" || objectIdRegex.test(val),
       { message: "El identificador de la carpeta no es válido" },
     ),
 });
@@ -49,10 +46,7 @@ const CreateFolderDto = z.object({
     .default(null)
     .refine(
       (val) =>
-        !val ||
-        val === "null" ||
-        val === "root" ||
-        objectIdRegex.test(val),
+        !val || val === "null" || val === "root" || objectIdRegex.test(val),
       { message: "El identificador de la carpeta padre no es válido" },
     ),
 });
@@ -83,10 +77,7 @@ const CreateFileDto = z.object({
     .default(null)
     .refine(
       (val) =>
-        !val ||
-        val === "null" ||
-        val === "root" ||
-        objectIdRegex.test(val),
+        !val || val === "null" || val === "root" || objectIdRegex.test(val),
       { message: "El identificador de la carpeta no es válido" },
     ),
   tags: z.array(z.string().trim()).optional().default([]),

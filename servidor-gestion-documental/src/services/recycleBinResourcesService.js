@@ -21,12 +21,6 @@ const getTrash = async (userId, folderId = null) => {
 
   // Si se navega dentro de una carpeta específica de la papelera
   if (folderId && folderId !== "null" && folderId !== "root") {
-    if (!mongoose.Types.ObjectId.isValid(folderId)) {
-      const error = new Error("El identificador de la carpeta no es válido");
-      error.statusCode = 400;
-      throw error;
-    }
-
     const targetFolderId = new mongoose.Types.ObjectId(folderId);
 
     currentFolder = await Folder.findOne({
@@ -139,12 +133,6 @@ const getTrash = async (userId, folderId = null) => {
  * @param {boolean} moveToTrash - true para mover a la papelera, false para restaurar
  */
 const moveToTrashOrRestore = async (userId, resourceId, moveToTrash) => {
-  if (!mongoose.Types.ObjectId.isValid(resourceId)) {
-    const error = new Error("El identificador del archivo no es válido");
-    error.statusCode = 400;
-    throw error;
-  }
-
   const userObjectId = new mongoose.Types.ObjectId(userId);
 
   // Intentar encontrar el recurso como carpeta
@@ -209,12 +197,6 @@ const moveToTrashOrRestore = async (userId, resourceId, moveToTrash) => {
  */
 
 const deleteResourcePermanently = async (userId, resourceId) => {
-  if (!mongoose.Types.ObjectId.isValid(resourceId)) {
-    const error = new Error("El identificador del recurso no es válido");
-    error.statusCode = 400;
-    throw error;
-  }
-
   const userObjectId = new mongoose.Types.ObjectId(userId);
 
   // Intentar encontrar el recurso como carpeta
