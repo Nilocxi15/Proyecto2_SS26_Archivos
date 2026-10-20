@@ -17,10 +17,10 @@ const manejadorErrores = (err, req, res, next) => {
   }
 
   // Manejo de errores específicos de Mongoose / MongoDB
-  let mensaje = err.message || 'Error interno del servidor';
+  let mensaje = err.message || "Error interno del servidor";
 
   // Error de Cast de ObjectId inválido
-  if (err.name === 'CastError') {
+  if (err.name === "CastError") {
     statusCode = 400;
     mensaje = `Identificador de recurso no válido (${err.value})`;
   }
@@ -28,50 +28,52 @@ const manejadorErrores = (err, req, res, next) => {
   // Error de Clave Duplicada
   if (err.code === 11000) {
     statusCode = 409;
-    const campo = Object.keys(err.keyValue || {})[0] || 'campo';
+    const campo = Object.keys(err.keyValue || {})[0] || "campo";
     mensaje = `El valor ingresado para '${campo}' ya se encuentra en uso`;
   }
 
   // Error de validación de campos de Mongoose
-  if (err.name === 'ValidationError') {
+  if (err.name === "ValidationError") {
     statusCode = 400;
     mensaje = Object.values(err.errors)
       .map((val) => val.message)
-      .join(', ');
+      .join(", ");
   }
 
   // Error de validación de DTOs con Zod
-  if (err.name === 'ZodError') {
+  if (err.name === "ZodError") {
     statusCode = 400;
+    const issues = err.issues || err.errors || [];
     return res.status(statusCode).json({
-      status: 'error',
-      mensaje: 'Error de validación en los datos enviados',
-      errores: err.errors.map((e) => ({
-        campo: e.path.join('.'),
-        mensaje: e.message
-      }))
+      status: "error",
+      mensaje:
+        issues[0]?.message || "Error de validación en los datos enviados",
+      errores: issues.map((e) => ({
+        campo: e.path.join("."),
+        mensaje: e.message,
+      })),
     });
   }
 
   // Error de JsonWebToken
-  if (err.name === 'JsonWebTokenError') {
+  if (err.name === "JsonWebTokenError") {
     statusCode = 401;
-    mensaje = 'Token de autenticación inválido';
+    mensaje = "Token de autenticación inválido";
   }
 
-  if (err.name === 'TokenExpiredError') {
+  if (err.name === "TokenExpiredError") {
     statusCode = 401;
-    mensaje = 'El token de autenticación ha expirado';
+    mensaje = "El token de autenticación ha expirado";
   }
 
   return res.status(statusCode).json({
-    status: 'error',
+    status: "error",
     mensaje,
-    ...(process.env.NODE_ENV === 'development' && { pila: err.stack })
+    ...(process.env.NODE_ENV === "development" && { pila: err.stack }),
   });
 };
 
 module.exports = {
   noEncontrado,
-  manejadorErrores
+  manejadorErrores,
 };
