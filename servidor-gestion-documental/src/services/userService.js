@@ -11,7 +11,7 @@ const getAllUsers = async (query = {}) => {
 
   // Filtro por término de búsqueda (nombre, apellido o email)
   if (query.search && query.search.trim()) {
-    const searchRegex = new RegExp(query.search.trim(), "i");
+    const searchRegex = new RegExp(query.search, "i");
     filter.$or = [
       { name: searchRegex },
       { lastName: searchRegex },
@@ -20,7 +20,7 @@ const getAllUsers = async (query = {}) => {
   }
 
   // Filtro por rol
-  if (query.role && query.role !== 'all') {
+  if (query.role && query.role !== "all") {
     filter.role = query.role;
   }
 
@@ -53,12 +53,6 @@ const getAllUsers = async (query = {}) => {
  * @returns {Promise<object>}
  */
 const getUserById = async (userId) => {
-  if (!mongoose.Types.ObjectId.isValid(userId)) {
-    const error = new Error("Identificador de usuario inválido");
-    error.statusCode = 400;
-    throw error;
-  }
-
   const user = await User.findById(userId).select("-password").lean();
   if (!user) {
     const error = new Error("Usuario no encontrado");
@@ -77,29 +71,7 @@ const getUserById = async (userId) => {
 const createUser = async (userData) => {
   const { name, lastName, email, password, role, storageLimitBytes } = userData;
 
-  if (!name || !lastName || !email || !password) {
-    const error = new Error(
-      "Nombre, apellido, correo electrónico y contraseña son obligatorios",
-    );
-    error.statusCode = 400;
-    throw error;
-  }
-
-  const cleanEmail = email.trim().toLowerCase();
-
-  // Validar formato de correo
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  if (!emailRegex.test(cleanEmail)) {
-    const error = new Error("El correo electrónico no posee un formato válido");
-    error.statusCode = 400;
-    throw error;
-  }
-
-  if (password.length < 6) {
-    const error = new Error("La contraseña debe tener al menos 6 caracteres");
-    error.statusCode = 400;
-    throw error;
-  }
+  const cleanEmail = email;
 
   // Comprobar existencia previa de email
   const existingUser = await User.findOne({ email: cleanEmail });
@@ -111,16 +83,16 @@ const createUser = async (userData) => {
     throw error;
   }
 
-  const userRole = role === 'admin' ? 'admin' : 'usuario';
+  const userRole = role === "admin" ? "admin" : "usuario";
   const limitBytes = storageLimitBytes ? Number(storageLimitBytes) : 524288000; // 500 MB por defecto
 
   const newUser = await User.create({
-    name: name.trim(),
-    lastName: lastName.trim(),
+    name: name,
+    lastName: lastName,
     email: cleanEmail,
     password,
     role: userRole,
-    status: 'activo',
+    status: "activo",
     storageLimitBytes: limitBytes,
   });
 
@@ -138,36 +110,30 @@ const createUser = async (userData) => {
  * @returns {Promise<object>}
  */
 const updateUser = async (userId, updateData, currentAdminId) => {
-  if (!mongoose.Types.ObjectId.isValid(userId)) {
-    const error = new Error('Identificador de usuario inválido');
-    error.statusCode = 400;
-    throw error;
-  }
-
   const user = await User.findById(userId);
   if (!user) {
-    const error = new Error('Usuario no encontrado');
+    const error = new Error("Usuario no encontrado");
     error.statusCode = 404;
     throw error;
   }
 
   // Regla de seguridad: Un administrador no puede desactivar su propia cuenta activa
   if (
-    updateData.status === 'inactivo' &&
+    updateData.status === "inactivo" &&
     currentAdminId &&
     userId.toString() === currentAdminId.toString()
   ) {
     const error = new Error(
-      'No puedes desactivar tu propia cuenta mientras tienes la sesión activa'
+      "No puedes desactivar tu propia cuenta mientras tienes la sesión activa",
     );
     error.statusCode = 400;
     throw error;
   }
 
-  if (updateData.name) user.name = updateData.name.trim();
-  if (updateData.lastName) user.lastName = updateData.lastName.trim();
+  if (updateData.name) user.name = updateData.name;
+  if (updateData.lastName) user.lastName = updateData.lastName;
 
-  if (updateData.role && ['admin', 'usuario'].includes(updateData.role)) {
+  if (updateData.role && ["admin", "usuario"].includes(updateData.role)) {
     user.role = updateData.role;
   }
 
@@ -195,12 +161,6 @@ const updateUser = async (userId, updateData, currentAdminId) => {
  * @returns {Promise<object>}
  */
 const toggleUserStatus = async (userId, currentAdminId) => {
-  if (!mongoose.Types.ObjectId.isValid(userId)) {
-    const error = new Error("Identificador de usuario inválido");
-    error.statusCode = 400;
-    throw error;
-  }
-
   // Regla de seguridad: No auto-desactivarse
   if (currentAdminId && userId.toString() === currentAdminId.toString()) {
     const error = new Error(
@@ -234,12 +194,6 @@ const toggleUserStatus = async (userId, currentAdminId) => {
  * @returns {Promise<object>}
  */
 const softDeleteUser = async (userId, currentAdminId) => {
-  if (!mongoose.Types.ObjectId.isValid(userId)) {
-    const error = new Error("Identificador de usuario inválido");
-    error.statusCode = 400;
-    throw error;
-  }
-
   if (currentAdminId && userId.toString() === currentAdminId.toString()) {
     const error = new Error(
       "No puedes desactivar tu propia cuenta mientras tienes la sesión activa",

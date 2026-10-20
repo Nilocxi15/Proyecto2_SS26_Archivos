@@ -54,12 +54,6 @@ const getSharedWithMe = async (userId, folderId = null) => {
 
   // Si se solicita explorar dentro de una carpeta compartida específica
   if (folderId && folderId !== "null" && folderId !== "root") {
-    if (!mongoose.Types.ObjectId.isValid(folderId)) {
-      const error = new Error("El identificador de la carpeta no es válido");
-      error.statusCode = 400;
-      throw error;
-    }
-
     const targetFolderId = new mongoose.Types.ObjectId(folderId);
 
     const folderDoc = await Folder.findOne({

@@ -9,12 +9,6 @@ const mongoose = require("mongoose");
  * @returns {Promise<{fileName: string, extension: string, content: string, mimeType: string}>}
  */
 const getFileForDownload = async (userId, fileId) => {
-  if (!fileId || !mongoose.Types.ObjectId.isValid(fileId)) {
-    const error = new Error("El identificador del archivo no es válido");
-    error.statusCode = 400;
-    throw error;
-  }
-
   const userObjectId = new mongoose.Types.ObjectId(userId);
   const file = await File.findById(fileId).lean();
 
@@ -71,9 +65,9 @@ const getFileForDownload = async (userId, fileId) => {
     throw error;
   }
 
-  const ext = (file.extension || "txt").replace(".", "").toLowerCase();
+  const ext = (file.extension || "txt").replace(".", "");
   const suffix = `.${ext}`;
-  const cleanName = (file.name || "documento").trim();
+  const cleanName = (file.name || "documento");
   const fileName = cleanName.toLowerCase().endsWith(suffix)
     ? cleanName
     : `${cleanName}${suffix}`;

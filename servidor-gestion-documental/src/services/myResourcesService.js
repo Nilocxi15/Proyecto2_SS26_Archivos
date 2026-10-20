@@ -15,12 +15,6 @@ const getMyFiles = async (userId, folderId = null) => {
 
   // Si se solicita navegar dentro de una carpeta específica, validamos que exista y pertenezca al usuario
   if (folderId && folderId !== "null" && folderId !== "root") {
-    if (!mongoose.Types.ObjectId.isValid(folderId)) {
-      const error = new Error("El identificador de la carpeta no es válido");
-      error.statusCode = 400;
-      throw error;
-    }
-
     targetFolderId = new mongoose.Types.ObjectId(folderId);
 
     // Buscar la carpeta contenedora activa
@@ -96,26 +90,12 @@ const getMyFiles = async (userId, folderId = null) => {
  * @param {{name: string, parentId?: string|null}} data
  */
 const createFolder = async (userId, { name, parentId = null }) => {
-  if (!name || !name.trim()) {
-    const error = new Error("El nombre de la carpeta es obligatorio");
-    error.statusCode = 400;
-    throw error;
-  }
-
-  const cleanName = name.trim();
+  const cleanName = name;
   let cleanParentId = null;
   let path = `/${cleanName}`;
   let ancestors = [];
 
   if (parentId && parentId !== "null" && parentId !== "root") {
-    if (!mongoose.Types.ObjectId.isValid(parentId)) {
-      const error = new Error(
-        "El identificador de la carpeta padre no es válido",
-      );
-      error.statusCode = 400;
-      throw error;
-    }
-
     cleanParentId = new mongoose.Types.ObjectId(parentId);
     const parentFolder = await Folder.findOne({
       _id: cleanParentId,
@@ -171,35 +151,15 @@ const createFile = async (
   userId,
   { name, extension, content = "", folderId = null, tags = [] },
 ) => {
-  if (!name || !name.trim()) {
-    const error = new Error("El nombre del archivo es obligatorio");
-    error.statusCode = 400;
-    throw error;
-  }
-
-  const cleanName = name.trim();
+  const cleanName = name;
   let ext = extension
-    ? extension.replace(".", "").toLowerCase()
+    ? extension.replace(".", "")
     : cleanName.endsWith(".md")
       ? "md"
       : "txt";
 
-  if (ext !== "txt" && ext !== "md") {
-    const error = new Error(
-      "Solo se permiten archivos con extensión .txt o .md",
-    );
-    error.statusCode = 400;
-    throw error;
-  }
-
   let cleanFolderId = null;
   if (folderId && folderId !== "null" && folderId !== "root") {
-    if (!mongoose.Types.ObjectId.isValid(folderId)) {
-      const error = new Error("El identificador de la carpeta no es válido");
-      error.statusCode = 400;
-      throw error;
-    }
-
     cleanFolderId = new mongoose.Types.ObjectId(folderId);
     const parentFolder = await Folder.findOne({
       _id: cleanFolderId,

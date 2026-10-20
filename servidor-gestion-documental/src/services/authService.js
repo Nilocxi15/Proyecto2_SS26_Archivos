@@ -12,7 +12,7 @@ const mongoose = require("mongoose");
  */
 const generarToken = (userId, role) => {
   return jwt.sign({ id: userId, role }, process.env.JWT_SECRET, {
-    expiresIn: process.env.JWT_EXPIRES_IN || '1h',
+    expiresIn: process.env.JWT_EXPIRES_IN || "1h",
   });
 };
 
@@ -23,20 +23,12 @@ const generarToken = (userId, role) => {
  * @returns {Promise<{token: string, usuario: object}>}
  */
 const login = async (email, password) => {
-  if (!email || !password) {
-    const error = new Error(
-      'Debe ingresar el correo electrónico y la contraseña',
-    );
-    error.statusCode = 400;
-    throw error;
-  }
-
   // Buscar usuario incluyendo explícitamente el campo password (+password)
-  const usuario = await User.findOne({ email }).select('+password');
+  const usuario = await User.findOne({ email }).select("+password");
 
   if (!usuario) {
     const error = new Error(
-      'Credenciales inválidas (usuario o contraseña incorrectos)',
+      "Credenciales inválidas (usuario o contraseña incorrectos)",
     );
     error.statusCode = 401;
     throw error;
@@ -44,9 +36,9 @@ const login = async (email, password) => {
 
   // Regla de negocio: Validar estado activo
   const userStatus = usuario.status;
-  if (userStatus && userStatus !== 'activo') {
+  if (userStatus && userStatus !== "activo") {
     const error = new Error(
-      'La cuenta se encuentra inactiva. Comuníquese con el administrador del sistema',
+      "La cuenta se encuentra inactiva. Comuníquese con el administrador del sistema",
     );
     error.statusCode = 403;
     throw error;
@@ -56,7 +48,7 @@ const login = async (email, password) => {
   const esPasswordValido = await usuario.compararPassword(password);
   if (!esPasswordValido) {
     const error = new Error(
-      'Credenciales inválidas (usuario o contraseña incorrectos)',
+      "Credenciales inválidas (usuario o contraseña incorrectos)",
     );
     error.statusCode = 401;
     throw error;
@@ -76,14 +68,22 @@ const login = async (email, password) => {
  * @param {object} datosUsuario
  * @returns {Promise<{token: string, usuario: object}>}
  */
-const registrarUsuario = async ({ name, lastName, nombre, email, password, role, rol }) => {
-  const finalName = (name || nombre || '').trim();
-  const finalLastName = (lastName || '').trim();
-  const finalRole = role || rol || 'usuario';
+const registrarUsuario = async ({
+  name,
+  lastName,
+  nombre,
+  email,
+  password,
+  role,
+  rol,
+}) => {
+  const finalName = (name || nombre || "").trim();
+  const finalLastName = (lastName || "").trim();
+  const finalRole = role || rol || "usuario";
 
   if (!finalName || !email || !password) {
     const error = new Error(
-      'Nombre, correo electrónico y contraseña son obligatorios',
+      "Nombre, correo electrónico y contraseña son obligatorios",
     );
     error.statusCode = 400;
     throw error;
@@ -92,7 +92,7 @@ const registrarUsuario = async ({ name, lastName, nombre, email, password, role,
   const cleanEmail = email.trim().toLowerCase();
   const existeUsuario = await User.findOne({ email: cleanEmail });
   if (existeUsuario) {
-    const error = new Error('El correo electrónico ya se encuentra registrado');
+    const error = new Error("El correo electrónico ya se encuentra registrado");
     error.statusCode = 409;
     throw error;
   }
@@ -102,8 +102,8 @@ const registrarUsuario = async ({ name, lastName, nombre, email, password, role,
     lastName: finalLastName,
     email: cleanEmail,
     password,
-    role: finalRole === 'admin' ? 'admin' : 'usuario',
-    status: 'activo',
+    role: finalRole === "admin" ? "admin" : "usuario",
+    status: "activo",
   });
 
   const token = generarToken(nuevoUsuario._id, nuevoUsuario.role);
@@ -190,22 +190,6 @@ const getUserProfile = async (userId) => {
  * @param {string} newPassword
  */
 const changePassword = async (userId, currentPassword, newPassword) => {
-  if (!currentPassword || !newPassword) {
-    const error = new Error(
-      "Debe proporcionar la contraseña actual y la nueva contraseña",
-    );
-    error.statusCode = 400;
-    throw error;
-  }
-
-  if (newPassword.length < 6) {
-    const error = new Error(
-      "La nueva contraseña debe tener al menos 6 caracteres",
-    );
-    error.statusCode = 400;
-    throw error;
-  }
-
   // Buscar el usuario trayendo el campo oculto password (+password)
   const usuario = await User.findById(userId).select("+password");
   if (!usuario) {
