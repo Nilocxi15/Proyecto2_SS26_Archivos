@@ -275,6 +275,36 @@ export class ResourceService {
   }
 
   /**
+   * Obtiene todas las carpetas activas del usuario para traslados o exploraciones
+   */
+  getAllFolders(): Observable<{ status: string; data: FolderItem[] }> {
+    return this.http.get<{ status: string; data: FolderItem[] }>(`${this.apiUrl}/folders`);
+  }
+
+  /**
+   * Mueve un archivo a otra carpeta de destino o a la raíz
+   * @param fileId ID del archivo a mover
+   * @param targetFolderId ID de la carpeta destino (null para la raíz)
+   */
+  moveFile(
+    fileId: string,
+    targetFolderId: string | null,
+  ): Observable<{ status: string; mensaje: string; data: FileItem }> {
+    return this.http
+      .put<{ status: string; mensaje: string; data: FileItem }>(
+        `${this.apiUrl}/files/${fileId}/move`,
+        { targetFolderId },
+      )
+      .pipe(
+        tap(() => {
+          // Refrescar la carpeta actual tras el movimiento
+          const currentId = this.currentFolder()?._id || null;
+          this.loadMisArchivos(currentId).subscribe();
+        }),
+      );
+  }
+
+  /**
    * Crea una nueva carpeta en el backend y refresca la vista
    * @param data Datos de la carpeta a crear
    */

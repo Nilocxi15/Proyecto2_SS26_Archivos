@@ -39,6 +39,16 @@ export class MisArchivos implements OnInit {
   readonly selectedUploadFile = signal<File | null>(null);
   readonly uploadFileError = signal<string | null>(null);
 
+  // Estado del modal de mover archivo a otra ubicación
+  readonly isMoveModalVisible = signal<boolean>(false);
+  readonly fileToMove = signal<FileItem | null>(null);
+  readonly destinationFolders = signal<FolderItem[]>([]);
+  readonly selectedDestinationFolderId = signal<string | null>(null);
+  readonly isLoadingFolders = signal<boolean>(false);
+  readonly isMovingFile = signal<boolean>(false);
+  readonly moveFileError = signal<string | null>(null);
+  readonly folderSearchTerm = signal<string>('');
+
   // Estado del modal de detalles técnicos
   readonly selectedFolderDetail = signal<FolderItem | null>(null);
   readonly selectedFileDetail = signal<FileItem | null>(null);
@@ -119,6 +129,17 @@ export class MisArchivos implements OnInit {
     }
 
     return items;
+  });
+
+  // Lista filtrada de carpetas destino según el buscador del modal de mover
+  readonly filteredDestinationFolders = computed(() => {
+    const term = this.folderSearchTerm().toLowerCase().trim();
+    if (!term) {
+      return this.destinationFolders();
+    }
+    return this.destinationFolders().filter(
+      (f) => f.name.toLowerCase().includes(term) || (f.path || '').toLowerCase().includes(term),
+    );
   });
 
   ngOnInit(): void {
@@ -366,6 +387,74 @@ export class MisArchivos implements OnInit {
       error: (err) => {
         const msg = err?.error?.mensaje || 'Error al descargar el archivo desde el servidor';
         this.resourceService.error.set(msg);
+      },
+    });
+  }
+
+  // MOVER ARCHIVO A OTRA UBICACIÓN
+  openMoveModal(file: FileItem): void {
+    this.fileToMove.set(file);
+    // Inicializar selección con la ubicación actual
+    this.selectedDestinationFolderId.set(file.folderId || null);
+    this.moveFileError.set(null);
+    this.folderSearchTerm.set('');
+    this.isMovingFile.set(false);
+    this.isMoveModalVisible.set(true);
+
+    // Cargar la lista completa de carpetas activas del usuario
+    this.isLoadingFolders.set(true);
+    this.resourceService.getAllFolders().subscribe({
+      next: (res) => {
+        this.isLoadingFolders.set(false);
+        this.destinationFolders.set(res.data || []);
+      },
+      error: () => {
+        this.isLoadingFolders.set(false);
+        this.moveFileError.set('No se pudieron consultar las carpetas disponibles en el servidor');
+      },
+    });
+  }
+
+  closeMoveModal(): void {
+    this.isMoveModalVisible.set(false);
+    this.fileToMove.set(null);
+    this.moveFileError.set(null);
+    this.folderSearchTerm.set('');
+    this.isMovingFile.set(false);
+  }
+
+  selectDestination(folderId: string | null): void {
+    this.selectedDestinationFolderId.set(folderId);
+    this.moveFileError.set(null);
+  }
+
+  confirmMoveFile(): void {
+    const file = this.fileToMove();
+    if (!file) return;
+
+    const targetFolderId = this.selectedDestinationFolderId();
+    const currentFolderId = file.folderId || null;
+
+    if (currentFolderId === targetFolderId) {
+      this.moveFileError.set('El archivo ya se encuentra en la ubicación de destino seleccionada');
+      return;
+    }
+
+    this.isMovingFile.set(true);
+    this.moveFileError.set(null);
+
+    this.resourceService.moveFile(file._id, targetFolderId).subscribe({
+      next: (res) => {
+        this.isMovingFile.set(false);
+        this.closeMoveModal();
+        this.closeDetailsModal();
+        const msg = res.mensaje || `Archivo "${file.name}" movido exitosamente`;
+        this.showNotification(msg);
+      },
+      error: (err) => {
+        this.isMovingFile.set(false);
+        const msg = err?.error?.mensaje || 'Error al mover el archivo a la nueva ubicación';
+        this.moveFileError.set(msg);
       },
     });
   }

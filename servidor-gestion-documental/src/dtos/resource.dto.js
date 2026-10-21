@@ -175,6 +175,23 @@ const ShareUserParamDto = z.object({
     .regex(objectIdRegex, "El identificador del usuario no es válido"),
 });
 
+/**
+ * DTO para mover un archivo a otra carpeta (PUT /api/resources/files/:id/move)
+ */
+const MoveFileDto = z.object({
+  targetFolderId: z
+    .string()
+    .trim()
+    .nullable()
+    .optional()
+    .default(null)
+    .refine(
+      (val) =>
+        !val || val === "null" || val === "root" || objectIdRegex.test(val),
+      { message: "El identificador de la carpeta destino no es válido" },
+    ),
+});
+
 module.exports = {
   ResourceIdParamDto,
   FolderQueryDto,
@@ -186,4 +203,5 @@ module.exports = {
   CommentParamDto,
   ShareResourceDto,
   ShareUserParamDto,
+  MoveFileDto,
 };

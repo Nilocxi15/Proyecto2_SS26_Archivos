@@ -14,6 +14,7 @@ const {
   CommentParamDto,
   ShareResourceDto,
   ShareUserParamDto,
+  MoveFileDto,
 } = require("../dtos/resource.dto");
 
 /**
@@ -79,12 +80,24 @@ router.delete(
   resourceController.deleteResource,
 );
 
+// Listar todas las carpetas activas del usuario (para traslados y selectores)
+router.get("/folders", protectRoutes, resourceController.getAllFolders);
+
 // Crear una nueva carpeta
 router.post(
   "/folders",
   protectRoutes,
   validarDto(CreateFolderDto, "body"),
   resourceController.createFolder,
+);
+
+// Mover un archivo a otra carpeta de destino o a la raíz
+router.put(
+  "/files/:id/move",
+  protectRoutes,
+  validarDto(ResourceIdParamDto, "params"),
+  validarDto(MoveFileDto, "body"),
+  resourceController.moveFile,
 );
 
 // Subir/Crear un nuevo archivo .txt o .md

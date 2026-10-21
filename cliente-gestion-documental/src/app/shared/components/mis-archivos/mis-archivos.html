@@ -331,6 +331,14 @@
                         >
                           <i class="bi bi-download"></i>
                         </button>
+                        <button
+                          type="button"
+                          class="btn btn-sm btn-outline-primary border-0 rounded-circle"
+                          (click)="openMoveModal(file)"
+                          title="Mover a otra carpeta"
+                        >
+                          <i class="bi bi-folder-symlink"></i>
+                        </button>
                       }
                       <button
                         type="button"
@@ -445,6 +453,14 @@
                             title="Descargar archivo"
                           >
                             <i class="bi bi-download me-1"></i> Descargar
+                          </button>
+                          <button
+                            type="button"
+                            class="btn btn-sm btn-outline-primary rounded-pill px-3"
+                            (click)="openMoveModal(file)"
+                            title="Mover a otra carpeta"
+                          >
+                            <i class="bi bi-folder-symlink me-1"></i> Mover
                           </button>
                         }
                         <button
@@ -945,6 +961,13 @@
               </button>
               <button
                 type="button"
+                class="btn btn-outline-primary btn-sm rounded-pill px-3"
+                (click)="openMoveModal(file)"
+              >
+                <i class="bi bi-folder-symlink me-1"></i> Mover
+              </button>
+              <button
+                type="button"
                 class="btn btn-primary btn-sm rounded-pill px-3"
                 (click)="openFileWorkspace(file)"
               >
@@ -1025,6 +1048,166 @@
             (click)="confirmMoveToTrash()"
           >
             <i class="bi bi-trash3 me-1"></i> Mover a la papelera
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+}
+
+<!-- MODAL: MOVER ARCHIVO A OTRA UBICACIÓN -->
+@if (isMoveModalVisible() && fileToMove(); as file) {
+  <div class="modal fade show d-block background-modal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content border-0 shadow-lg rounded-3">
+        <div class="modal-header border-bottom py-3">
+          <div class="d-flex align-items-center gap-2 min-w-0">
+            <i class="bi bi-folder-symlink-fill text-primary fs-4"></i>
+            <div class="min-w-0">
+              <h5 class="modal-title h6 fw-bold mb-0 text-truncate">
+                Mover "{{ file.name }}"
+              </h5>
+              <div class="text-muted small" style="font-size: 0.75rem">
+                Selecciona la carpeta de destino
+              </div>
+            </div>
+          </div>
+          <button
+            type="button"
+            class="btn-close"
+            aria-label="Cerrar"
+            (click)="closeMoveModal()"
+          ></button>
+        </div>
+
+        <div class="modal-body p-4">
+          @if (moveFileError()) {
+            <div class="alert alert-danger py-2 px-3 small border-0 mb-3" role="alert">
+              <i class="bi bi-exclamation-circle me-1"></i> {{ moveFileError() }}
+            </div>
+          }
+
+          <!-- Buscador rápido de carpetas si hay más de 3 -->
+          @if (destinationFolders().length > 3) {
+            <div class="mb-3">
+              <div class="input-group input-group-sm">
+                <span class="input-group-text bg-light border-end-0 text-muted">
+                  <i class="bi bi-search"></i>
+                </span>
+                <input
+                  type="text"
+                  class="form-control border-start-0"
+                  placeholder="Filtrar carpetas..."
+                  [ngModel]="folderSearchTerm()"
+                  (ngModelChange)="folderSearchTerm.set($event)"
+                />
+              </div>
+            </div>
+          }
+
+          <!-- Indicador de carga de carpetas -->
+          @if (isLoadingFolders()) {
+            <div class="text-center py-4 text-muted">
+              <div class="spinner-border spinner-border-sm text-primary mb-2" role="status"></div>
+              <div class="small">Cargando carpetas disponibles...</div>
+            </div>
+          } @else {
+            <div
+              class="destination-list d-flex flex-column gap-2"
+              style="max-height: 280px; overflow-y: auto;"
+            >
+              <!-- Opción: Directorio Raíz -->
+              <div
+                class="card p-2 border rounded-3 cursor-pointer"
+                [class.border-primary]="selectedDestinationFolderId() === null"
+                [class.bg-primary-subtle]="selectedDestinationFolderId() === null"
+                (click)="selectDestination(null)"
+              >
+                <div class="d-flex align-items-center justify-content-between">
+                  <div class="d-flex align-items-center gap-2">
+                    <i class="bi bi-house-door-fill text-primary fs-5"></i>
+                    <div>
+                      <span class="fw-semibold text-dark small d-block">Raíz (/)</span>
+                      <span class="text-muted" style="font-size: 0.72rem"
+                        >Directorio principal</span
+                      >
+                    </div>
+                  </div>
+                  @if (file.folderId === null) {
+                    <span class="badge bg-secondary-subtle text-secondary-emphasis small">
+                      Ubicación actual
+                    </span>
+                  } @else if (selectedDestinationFolderId() === null) {
+                    <i class="bi bi-check-circle-fill text-primary"></i>
+                  }
+                </div>
+              </div>
+
+              <!-- Lista de Carpetas -->
+              @for (folder of filteredDestinationFolders(); track folder._id) {
+                <div
+                  class="card p-2 border rounded-3 cursor-pointer"
+                  [class.border-primary]="selectedDestinationFolderId() === folder._id"
+                  [class.bg-primary-subtle]="selectedDestinationFolderId() === folder._id"
+                  (click)="selectDestination(folder._id)"
+                >
+                  <div class="d-flex align-items-center justify-content-between">
+                    <div class="d-flex align-items-center gap-2 min-w-0">
+                      <i class="bi bi-folder-fill text-warning fs-5 flex-shrink-0"></i>
+                      <div class="min-w-0">
+                        <span class="fw-semibold text-dark small text-truncate d-block">
+                          {{ folder.name }}
+                        </span>
+                        <span
+                          class="text-muted text-truncate d-block font-monospace"
+                          style="font-size: 0.72rem"
+                        >
+                          {{ folder.path }}
+                        </span>
+                      </div>
+                    </div>
+                    @if (file.folderId === folder._id) {
+                      <span
+                        class="badge bg-secondary-subtle text-secondary-emphasis small flex-shrink-0"
+                      >
+                        Ubicación actual
+                      </span>
+                    } @else if (selectedDestinationFolderId() === folder._id) {
+                      <i class="bi bi-check-circle-fill text-primary flex-shrink-0"></i>
+                    }
+                  </div>
+                </div>
+              }
+
+              @if (filteredDestinationFolders().length === 0 && destinationFolders().length > 0) {
+                <div class="text-center py-3 text-muted small">
+                  No se encontraron carpetas que coincidan con "{{ folderSearchTerm() }}".
+                </div>
+              }
+            </div>
+          }
+        </div>
+
+        <div class="modal-footer border-top py-2">
+          <button
+            type="button"
+            class="btn btn-light btn-sm rounded-pill px-3"
+            (click)="closeMoveModal()"
+          >
+            Cancelar
+          </button>
+          <button
+            type="button"
+            class="btn btn-primary btn-sm rounded-pill px-3 fw-medium"
+            [disabled]="isMovingFile() || selectedDestinationFolderId() === file.folderId"
+            (click)="confirmMoveFile()"
+          >
+            @if (isMovingFile()) {
+              <span class="spinner-border spinner-border-sm me-1" role="status"></span>
+              Moviendo...
+            } @else {
+              <i class="bi bi-folder-symlink me-1"></i> Mover aquí
+            }
           </button>
         </div>
       </div>

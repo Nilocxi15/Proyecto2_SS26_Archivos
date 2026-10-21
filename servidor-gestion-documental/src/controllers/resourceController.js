@@ -336,6 +336,46 @@ const downloadFile = async (req, res, next) => {
   }
 };
 
+/**
+ * GET /api/resources/folders
+ * Obtiene todas las carpetas activas del usuario para selectores y traslados
+ */
+const getAllFolders = async (req, res, next) => {
+  try {
+    const userId = req.user._id || req.user.id;
+    const folders = await myResourcesService.getAllFolders(userId);
+
+    return res.status(200).json({
+      status: "success",
+      data: folders,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * PUT /api/resources/files/:id/move
+ * Mueve un archivo a otra carpeta de destino o a la raíz
+ */
+const moveFile = async (req, res, next) => {
+  try {
+    const userId = req.user._id || req.user.id;
+    const { id } = req.params;
+    const { targetFolderId } = req.body;
+
+    const file = await myResourcesService.moveFile(userId, id, targetFolderId);
+
+    return res.status(200).json({
+      status: "success",
+      mensaje: `Archivo "${file.name}" movido exitosamente`,
+      data: file,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   getMyFiles,
   getSharedWithMe,
@@ -351,4 +391,6 @@ module.exports = {
   deleteComment,
   shareResource,
   removeSharedUser,
+  getAllFolders,
+  moveFile,
 };
