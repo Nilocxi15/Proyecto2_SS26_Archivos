@@ -129,6 +129,12 @@ export class MisArchivos implements OnInit {
     this.resourceService.loadMisArchivos(crumb._id).subscribe();
   }
 
+  // ABRIR ARCHIVO EN EL ESPACIO DE TRABAJO (LECTURA, EDICIÓN, COMENTARIOS Y PERMISOS)
+  openFileWorkspace(file: FileItem): void {
+    this.closeDetailsModal();
+    this.resourceService.openFileInWorkspace(file, 'my-files');
+  }
+
   // CREAR NUEVA CARPETA
   openNewFolderModal(): void {
     this.newFolderName.set('');

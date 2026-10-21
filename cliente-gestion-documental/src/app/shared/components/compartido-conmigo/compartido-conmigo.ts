@@ -121,6 +121,12 @@ export class CompartidoConmigo implements OnInit {
     this.resourceService.loadCompartidoConmigo(currentId).subscribe();
   }
 
+  // ABRIR ARCHIVO COMPARTIDO EN EL ESPACIO DE TRABAJO (SEGÚN PERMISOS)
+  openFileWorkspace(file: FileItem): void {
+    this.closeDetailsModal();
+    this.resourceService.openFileInWorkspace(file, 'shared');
+  }
+
   // MODAL DE DETALLES
   openFolderDetails(folder: FolderItem): void {
     this.selectedFolderDetail.set(folder);

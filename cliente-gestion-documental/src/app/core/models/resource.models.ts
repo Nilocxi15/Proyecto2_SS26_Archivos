@@ -1,3 +1,22 @@
+export type ResourcePermission = 'lectura' | 'edicion' | 'comentar';
+
+export interface SharedUserEntry {
+  userId: string;
+  userName?: string;
+  userEmail?: string;
+  permission: ResourcePermission | string;
+}
+
+export interface FileComment {
+  _id: string;
+  authorId: string;
+  authorName: string;
+  authorEmail?: string;
+  content: string;
+  createdAt: string;
+  resolved?: boolean;
+}
+
 export interface FolderItem {
   _id: string;
   id?: string;
@@ -5,12 +24,12 @@ export interface FolderItem {
   ownerId: string;
   ownerName?: string;
   ownerEmail?: string;
-  myPermission?: 'lectura' | 'edicion' | 'comentar' | string;
+  myPermission?: ResourcePermission | string;
   parentId: string | null;
   parentFolderId?: string | null;
   path: string;
   ancestors?: string[];
-  sharedWith?: Array<{ userId: string; permission: string }>;
+  sharedWith?: SharedUserEntry[];
   itemCount?: number;
   isTrash?: boolean;
   trashedAt?: string | null;
@@ -28,11 +47,12 @@ export interface FileItem {
   ownerId: string;
   ownerName?: string;
   ownerEmail?: string;
-  myPermission?: 'lectura' | 'edicion' | 'comentar' | string;
+  myPermission?: ResourcePermission | string;
   folderId: string | null;
   path?: string;
   content?: string;
-  sharedWith?: Array<{ userId: string; permission: string }>;
+  sharedWith?: SharedUserEntry[];
+  comments?: FileComment[];
   tags?: string[];
   isTrash?: boolean;
   trashedAt?: string | null;
@@ -82,5 +102,11 @@ export interface FileDownloadResponse {
   data: FileDownloadData;
 }
 
+export interface ActiveWorkspaceContext {
+  file: FileItem;
+  origin: 'my-files' | 'shared';
+}
+
 export type SelectedResource =
-  { type: 'folder'; data: FolderItem } | { type: 'file'; data: FileItem };
+  | { type: 'folder'; data: FolderItem }
+  | { type: 'file'; data: FileItem };

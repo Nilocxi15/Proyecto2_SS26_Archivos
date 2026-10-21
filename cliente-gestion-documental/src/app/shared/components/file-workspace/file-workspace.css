@@ -1,0 +1,91 @@
+.workspace-back-btn {
+  width: 38px;
+  height: 38px;
+}
+
+.doc-type-icon {
+  width: 42px;
+  height: 42px;
+}
+
+.doc-title-heading.editable-title {
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 6px;
+  transition: background-color 0.15s ease;
+}
+
+.doc-title-heading.editable-title:hover {
+  background-color: #f1f5f9;
+}
+
+.title-edit-group {
+  max-width: 340px;
+}
+
+.document-canvas-wrapper {
+  background-color: #f1f5f9;
+  border: 1px solid #e2e8f0;
+}
+
+.document-sheet {
+  min-height: 620px;
+  border: 1px solid #e2e8f0 !important;
+}
+
+.document-textarea {
+  min-height: 560px;
+  resize: vertical;
+  font-family: 'Inter', 'Roboto', 'Segoe UI', monospace, sans-serif;
+  line-height: 1.65;
+  color: #1e293b;
+  background-color: #ffffff;
+}
+
+.document-textarea:focus {
+  box-shadow: none;
+  outline: none;
+}
+
+.document-reader-body {
+  min-height: 560px;
+  line-height: 1.7;
+  color: #1e293b;
+}
+
+.txt-reader-pre {
+  font-family: 'Inter', 'Roboto', 'Segoe UI', sans-serif;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-size: inherit;
+  line-height: 1.7;
+  color: #1e293b;
+}
+
+.whitespace-pre-wrap {
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.avatar-circle {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.sticky-side-panel {
+  position: sticky;
+  top: 1rem;
+}
+
+.comments-list {
+  max-height: 440px;
+  overflow-y: auto;
+}
+
+.cursor-pointer {
+  cursor: pointer;
+}

@@ -269,7 +269,11 @@
               >
                 <div>
                   <div class="d-flex align-items-start justify-content-between mb-2">
-                    <div class="d-flex align-items-center gap-2">
+                    <div
+                      class="d-flex align-items-center gap-2 cursor-pointer"
+                      (click)="openFileWorkspace(file)"
+                      title="Abrir documento en el editor"
+                    >
                       @if (file.extension === 'md' || file.extension === '.md') {
                         <i class="bi bi-markdown-fill text-info fs-2" title="Archivo Markdown"></i>
                       } @else {
@@ -300,6 +304,14 @@
                     </div>
 
                     <div class="d-flex align-items-center gap-1">
+                      <button
+                        type="button"
+                        class="btn btn-sm btn-outline-primary border-0 rounded-circle"
+                        (click)="openFileWorkspace(file)"
+                        title="Abrir y editar documento"
+                      >
+                        <i class="bi bi-pencil-square"></i>
+                      </button>
                       @if (!file.isTrash) {
                         <button
                           type="button"
@@ -329,7 +341,11 @@
                     </div>
                   </div>
 
-                  <h3 class="h6 fw-semibold text-dark text-truncate mb-1" title="{{ file.name }}">
+                  <h3
+                    class="h6 fw-semibold text-dark text-truncate mb-1 cursor-pointer"
+                    title="Abrir {{ file.name }}"
+                    (click)="openFileWorkspace(file)"
+                  >
                     {{ file.name }}
                   </h3>
                 </div>
@@ -338,7 +354,12 @@
                   class="d-flex justify-content-between align-items-center text-muted small mt-3 pt-2 border-top"
                 >
                   <span>{{ formatFileSize(file.sizeBytes) }}</span>
-                  <span>{{ formatDate(file.updatedAt) }}</span>
+                  <span
+                    class="cursor-pointer text-primary fw-medium"
+                    (click)="openFileWorkspace(file)"
+                  >
+                    Abrir <i class="bi bi-arrow-right-short"></i>
+                  </span>
                 </div>
               </div>
             </div>
@@ -364,7 +385,11 @@
                 @for (file of filteredFiles(); track file._id) {
                   <tr>
                     <td class="ps-3">
-                      <div class="d-flex align-items-center gap-2">
+                      <div
+                        class="d-flex align-items-center gap-2 cursor-pointer"
+                        (click)="openFileWorkspace(file)"
+                        title="Abrir documento"
+                      >
                         @if (file.extension === 'md' || file.extension === '.md') {
                           <i class="bi bi-markdown-fill text-info fs-5"></i>
                         } @else {
@@ -394,10 +419,18 @@
                     <td class="text-muted small">{{ formatDate(file.updatedAt) }}</td>
                     <td class="text-end pe-3">
                       <div class="d-inline-flex align-items-center gap-2">
+                        <button
+                          type="button"
+                          class="btn btn-sm btn-primary rounded-pill px-3"
+                          (click)="openFileWorkspace(file)"
+                          title="Abrir y editar documento"
+                        >
+                          <i class="bi bi-pencil-square me-1"></i> Abrir
+                        </button>
                         @if (!file.isTrash) {
                           <button
                             type="button"
-                            class="btn btn-sm btn-primary rounded-pill px-3"
+                            class="btn btn-sm btn-outline-primary rounded-pill px-3"
                             (click)="downloadFile(file)"
                             title="Descargar archivo"
                           >
@@ -414,7 +447,7 @@
                         </button>
                         <button
                           type="button"
-                          class="btn btn-sm btn-outline-primary rounded-pill px-3"
+                          class="btn btn-sm btn-outline-secondary rounded-pill px-3"
                           (click)="openFileDetails(file)"
                         >
                           <i class="bi bi-info-circle me-1"></i> Detalles
@@ -727,10 +760,17 @@
               </button>
               <button
                 type="button"
-                class="btn btn-primary btn-sm rounded-pill px-3"
+                class="btn btn-outline-primary btn-sm rounded-pill px-3"
                 (click)="downloadFile(file)"
               >
                 <i class="bi bi-download me-1"></i> Descargar
+              </button>
+              <button
+                type="button"
+                class="btn btn-primary btn-sm rounded-pill px-3"
+                (click)="openFileWorkspace(file)"
+              >
+                <i class="bi bi-pencil-square me-1"></i> Abrir en editor
               </button>
             }
           }

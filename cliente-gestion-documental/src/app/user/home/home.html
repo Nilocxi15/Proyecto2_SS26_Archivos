@@ -3,23 +3,28 @@
 
 <!-- Contenido Dinámico de la Sección Seleccionada -->
 <main class="container-fluid py-4 px-lg-5">
-  <!-- Sección Mis Archivos -->
-  @if (activeSection() === 'my-files') {
-    <app-mis-archivos></app-mis-archivos>
-  }
+  @if (resourceService.activeWorkspace()) {
+    <!-- Vista de Edición, Lectura, Comentarios y Permisos del Documento -->
+    <app-file-workspace></app-file-workspace>
+  } @else {
+    <!-- Sección Mis Archivos -->
+    @if (activeSection() === 'my-files') {
+      <app-mis-archivos></app-mis-archivos>
+    }
 
-  <!-- Sección Compartido conmigo -->
-  @if (activeSection() === 'shared') {
-    <app-compartido-conmigo></app-compartido-conmigo>
-  }
+    <!-- Sección Compartido conmigo -->
+    @if (activeSection() === 'shared') {
+      <app-compartido-conmigo></app-compartido-conmigo>
+    }
 
-  <!-- Sección Papelera -->
-  @if (activeSection() === 'trash') {
-    <app-papelera></app-papelera>
-  }
+    <!-- Sección Papelera -->
+    @if (activeSection() === 'trash') {
+      <app-papelera></app-papelera>
+    }
 
-  <!-- Sección Mi Perfil -->
-  @if (activeSection() === 'profile') {
-    <app-user-profile></app-user-profile>
+    <!-- Sección Mi Perfil -->
+    @if (activeSection() === 'profile') {
+      <app-user-profile></app-user-profile>
+    }
   }
 </main>
