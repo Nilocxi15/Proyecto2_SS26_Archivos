@@ -1,5 +1,6 @@
 const Folder = require("../models/Folder");
 const File = require("../models/File");
+const User = require("../models/User");
 const mongoose = require("mongoose");
 
 /**
@@ -205,6 +206,151 @@ const getSharedWithMe = async (userId, folderId = null) => {
   };
 };
 
+/**
+ * Comparte un archivo o carpeta con un usuario por correo electrónico o actualiza su permiso
+ * @param {string|mongoose.Types.ObjectId} userId - ID del propietario que comparte
+ * @param {string} resourceId - ID del archivo o carpeta
+ * @param {{ email: string, permission: 'lectura'|'comentar'|'edicion' }} data
+ */
+const shareResource = async (userId, resourceId, { email, permission }) => {
+  const userObjectId = new mongoose.Types.ObjectId(userId);
+  const resourceObjectId = new mongoose.Types.ObjectId(resourceId);
+
+  // Buscar recurso (Archivo o Carpeta) verificando propiedad
+  let resource = await File.findOne({ _id: resourceObjectId, ownerId: userObjectId });
+  let isFolder = false;
+
+  if (!resource) {
+    resource = await Folder.findOne({ _id: resourceObjectId, ownerId: userObjectId });
+    isFolder = true;
+  }
+
+  if (!resource) {
+    const error = new Error(
+      "El recurso no existe o no tienes permisos de propietario para compartirlo",
+    );
+    error.statusCode = 404;
+    throw error;
+  }
+
+  if (resource.isTrash) {
+    const error = new Error(
+      "No es posible compartir un recurso que se encuentra en la papelera",
+    );
+    error.statusCode = 400;
+    throw error;
+  }
+
+  const cleanEmail = email.trim().toLowerCase();
+  const targetUser = await User.findOne({ email: cleanEmail, status: "activo" }).select(
+    "_id name lastName email",
+  );
+
+  if (!targetUser) {
+    const error = new Error(
+      "No se encontró ningún usuario activo con el correo electrónico ingresado",
+    );
+    error.statusCode = 404;
+    throw error;
+  }
+
+  if (targetUser._id.toString() === userObjectId.toString()) {
+    const error = new Error("No puedes compartir un recurso contigo mismo");
+    error.statusCode = 400;
+    throw error;
+  }
+
+  // Verificar si ya existe en sharedWith
+  const existingIndex = (resource.sharedWith || []).findIndex(
+    (s) => s.userId.toString() === targetUser._id.toString(),
+  );
+
+  if (existingIndex !== -1) {
+    resource.sharedWith[existingIndex].permission = permission;
+  } else {
+    resource.sharedWith.push({
+      userId: targetUser._id,
+      permission,
+    });
+  }
+
+  await resource.save();
+  await resource.populate("sharedWith.userId", "name lastName email");
+
+  const formattedSharedWith = (resource.sharedWith || []).map((entry) => ({
+    userId: entry.userId?._id || entry.userId,
+    userName: entry.userId
+      ? `${entry.userId.name || ""} ${entry.userId.lastName || ""}`.trim()
+      : "Usuario",
+    userEmail: entry.userId?.email || "",
+    permission: entry.permission,
+  }));
+
+  return {
+    resourceId: resource._id,
+    resourceType: isFolder ? "folder" : "file",
+    sharedWith: formattedSharedWith,
+    targetUser: {
+      userId: targetUser._id,
+      userName: `${targetUser.name || ""} ${targetUser.lastName || ""}`.trim(),
+      userEmail: targetUser.email,
+      permission,
+    },
+  };
+};
+
+/**
+ * Revoca el acceso a un usuario compartido en un archivo o carpeta
+ * @param {string|mongoose.Types.ObjectId} userId - ID del propietario
+ * @param {string} resourceId - ID del archivo o carpeta
+ * @param {string} targetUserId - ID del usuario a revocar
+ */
+const removeSharedUser = async (userId, resourceId, targetUserId) => {
+  const userObjectId = new mongoose.Types.ObjectId(userId);
+  const resourceObjectId = new mongoose.Types.ObjectId(resourceId);
+  const targetObjectId = new mongoose.Types.ObjectId(targetUserId);
+
+  let resource = await File.findOne({ _id: resourceObjectId, ownerId: userObjectId });
+  let isFolder = false;
+
+  if (!resource) {
+    resource = await Folder.findOne({ _id: resourceObjectId, ownerId: userObjectId });
+    isFolder = true;
+  }
+
+  if (!resource) {
+    const error = new Error(
+      "El recurso no existe o no tienes permisos de propietario para administrarlo",
+    );
+    error.statusCode = 404;
+    throw error;
+  }
+
+  resource.sharedWith = (resource.sharedWith || []).filter(
+    (s) => s.userId.toString() !== targetObjectId.toString(),
+  );
+
+  await resource.save();
+  await resource.populate("sharedWith.userId", "name lastName email");
+
+  const formattedSharedWith = (resource.sharedWith || []).map((entry) => ({
+    userId: entry.userId?._id || entry.userId,
+    userName: entry.userId
+      ? `${entry.userId.name || ""} ${entry.userId.lastName || ""}`.trim()
+      : "Usuario",
+    userEmail: entry.userId?.email || "",
+    permission: entry.permission,
+  }));
+
+  return {
+    resourceId: resource._id,
+    resourceType: isFolder ? "folder" : "file",
+    sharedWith: formattedSharedWith,
+  };
+};
+
 module.exports = {
   getSharedWithMe,
+  shareResource,
+  removeSharedUser,
 };

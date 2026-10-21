@@ -37,6 +37,7 @@ export class FileWorkspace implements OnInit {
   readonly savedContent = signal<string>('');
   readonly savedTitle = signal<string>('');
   readonly tags = signal<string[]>([]);
+  readonly savedTags = signal<string[]>([]);
   readonly newTagInput = signal<string>('');
 
   // Configuración visual del espacio de trabajo
@@ -47,6 +48,8 @@ export class FileWorkspace implements OnInit {
   // Estado de comentarios del documento
   readonly comments = signal<FileComment[]>([]);
   readonly newCommentText = signal<string>('');
+  readonly isAddingComment = signal<boolean>(false);
+  readonly isDeletingCommentId = signal<string | null>(null);
 
   // Estado del modal de Compartir e Invitar usuarios
   readonly isShareModalVisible = signal<boolean>(false);
@@ -54,6 +57,7 @@ export class FileWorkspace implements OnInit {
   readonly inviteEmail = signal<string>('');
   readonly invitePermission = signal<ResourcePermission>('lectura');
   readonly shareError = signal<string | null>(null);
+  readonly isSharing = signal<boolean>(false);
 
   // Modal de confirmación al salir con cambios sin guardar
   readonly isUnsavedExitModalVisible = signal<boolean>(false);
@@ -106,10 +110,11 @@ export class FileWorkspace implements OnInit {
   // Indicador reactivo de cambios pendientes por guardar
   readonly hasUnsavedChanges = computed<boolean>(() => {
     if (!this.canEdit()) return false;
-    return (
-      this.documentContent() !== this.savedContent() ||
-      this.fileTitle().trim() !== this.savedTitle().trim()
-    );
+    const contentDiff = this.documentContent() !== this.savedContent();
+    const titleDiff = this.isOwner() && this.fileTitle().trim() !== this.savedTitle().trim();
+    const tagsDiff =
+      this.isOwner() && JSON.stringify(this.tags()) !== JSON.stringify(this.savedTags());
+    return contentDiff || titleDiff || tagsDiff;
   });
 
   // Tamaño actual en bytes del contenido
@@ -128,13 +133,17 @@ export class FileWorkspace implements OnInit {
     this.fileTitle.set(file.name);
     this.savedTitle.set(file.name);
     this.tags.set([...(file.tags || [])]);
+    this.savedTags.set([...(file.tags || [])]);
     this.lastSavedAt.set(file.updatedAt);
 
     // Inicializar usuarios con acceso
-    const initialShared: SharedUserEntry[] = (file.sharedWith || []).map((entry) => ({
-      userId: entry.userId,
-      userName: entry.userName || `Usuario (${entry.userId.slice(-6)})`,
-      userEmail: entry.userEmail || 'usuario@organizacion.com',
+    const initialShared: SharedUserEntry[] = (file.sharedWith || []).map((entry: any) => ({
+      userId:
+        typeof entry.userId === 'object' && entry.userId !== null
+          ? (entry.userId as any)._id
+          : entry.userId,
+      userName: entry.userName || `Usuario (${String(entry.userId).slice(-6)})`,
+      userEmail: entry.userEmail || '',
       permission: entry.permission || 'lectura',
     }));
     this.sharedUsers.set(initialShared);
@@ -142,29 +151,56 @@ export class FileWorkspace implements OnInit {
     // Inicializar comentarios existentes del archivo
     this.comments.set([...(file.comments || [])]);
 
-    // Si ya viene el contenido en memoria lo usamos; si no, lo consultamos al servidor
+    // Si ya viene el contenido en memoria lo usamos de inmediato
     if (typeof file.content === 'string') {
       this.documentContent.set(file.content);
       this.savedContent.set(file.content);
-    } else {
-      this.loadFileContentFromServer(file._id);
     }
+
+    // Consultar detalles frescos y actualizados desde el backend
+    this.loadFileDetailsFromServer(file._id);
   }
 
-  loadFileContentFromServer(fileId: string): void {
+  loadFileDetailsFromServer(fileId: string): void {
     this.isLoadingContent.set(true);
     this.loadError.set(null);
 
-    this.resourceService.fetchFileContent(fileId).subscribe({
+    this.resourceService.getFileDetails(fileId).subscribe({
       next: (res) => {
-        const content = res.data?.content ?? '';
-        this.documentContent.set(content);
-        this.savedContent.set(content);
+        const file = res.data;
+        if (file) {
+          this.fileTitle.set(file.name);
+          this.savedTitle.set(file.name);
+          const content = file.content ?? '';
+          this.documentContent.set(content);
+          this.savedContent.set(content);
+          this.tags.set([...(file.tags || [])]);
+          this.savedTags.set([...(file.tags || [])]);
+          this.lastSavedAt.set(file.updatedAt);
+
+          if (file.comments) {
+            this.comments.set(file.comments);
+          }
+          if (file.sharedWith) {
+            const mappedShared: SharedUserEntry[] = (file.sharedWith as any[]).map(
+              (entry: any) => ({
+                userId:
+                  typeof entry.userId === 'object' && entry.userId !== null
+                    ? (entry.userId as any)._id
+                    : entry.userId,
+                userName: entry.userName || 'Usuario',
+                userEmail: entry.userEmail || '',
+                permission: entry.permission || 'lectura',
+              }),
+            );
+            this.sharedUsers.set(mappedShared);
+          }
+          this.resourceService.updateFileInMemory(file);
+        }
         this.isLoadingContent.set(false);
       },
       error: (err) => {
-        const msg =
-          err?.error?.mensaje || 'No se pudo cargar el contenido del archivo desde el servidor.';
+        const msg = err?.error?.mensaje || 'No se pudo sincronizar el archivo desde el servidor.';
         this.loadError.set(msg);
         this.isLoadingContent.set(false);
       },
@@ -194,7 +230,7 @@ export class FileWorkspace implements OnInit {
   }
 
   // GUARDAR CAMBIOS DEL DOCUMENTO
-  saveChanges(): void {
+  saveChanges(onSuccess?: () => void): void {
     const file = this.currentFile();
     if (!file || !this.canEdit()) return;
 
@@ -202,30 +238,37 @@ export class FileWorkspace implements OnInit {
     this.fileTitle.set(cleanTitle);
     this.isSaving.set(true);
 
-    const updatedContent = this.documentContent();
-    const updatedBytes = new Blob([updatedContent]).size;
-    const nowIso = new Date().toISOString();
-
-    const updatedFile: FileItem = {
-      ...file,
-      name: cleanTitle,
-      content: updatedContent,
-      sizeBytes: updatedBytes,
-      tags: [...this.tags()],
-      comments: [...this.comments()],
-      sharedWith: [...this.sharedUsers()],
-      updatedAt: nowIso,
+    const payload: { name?: string; content?: string; tags?: string[] } = {
+      content: this.documentContent(),
     };
 
-    // Actualización reactiva inmediata en el estado del cliente
-    setTimeout(() => {
-      this.savedContent.set(updatedContent);
-      this.savedTitle.set(cleanTitle);
-      this.lastSavedAt.set(nowIso);
-      this.isSaving.set(false);
-      this.resourceService.updateFileInMemory(updatedFile);
-      this.showNotification('Cambios guardados correctamente en el documento');
-    }, 250);
+    if (this.isOwner()) {
+      payload.name = cleanTitle;
+      payload.tags = this.tags();
+    }
+
+    this.resourceService.saveFileChanges(file._id, payload).subscribe({
+      next: (res) => {
+        const updated = res.data;
+        const nowIso = updated?.updatedAt || new Date().toISOString();
+        this.savedContent.set(this.documentContent());
+        this.savedTitle.set(cleanTitle);
+        this.savedTags.set([...this.tags()]);
+        this.lastSavedAt.set(nowIso);
+        this.isSaving.set(false);
+
+        if (updated) {
+          this.resourceService.updateFileInMemory(updated);
+        }
+        this.showNotification('Cambios guardados correctamente en el documento');
+        onSuccess?.();
+      },
+      error: (err) => {
+        this.isSaving.set(false);
+        const msg = err?.error?.mensaje || 'Error al guardar los cambios en el archivo';
+        this.showNotification(msg);
+      },
+    });
   }
 
   // ETIQUETAS (TAGS)
@@ -235,7 +278,6 @@ export class FileWorkspace implements OnInit {
     if (!raw) return;
     if (!this.tags().includes(raw)) {
       this.tags.update((list) => [...list, raw]);
-      this.syncMetadataToMemory();
     }
     this.newTagInput.set('');
   }
@@ -243,7 +285,6 @@ export class FileWorkspace implements OnInit {
   removeTag(tag: string): void {
     if (!this.isOwner()) return;
     this.tags.update((list) => list.filter((t) => t !== tag));
-    this.syncMetadataToMemory();
   }
 
   // GESTIÓN DE COMENTARIOS
@@ -256,28 +297,27 @@ export class FileWorkspace implements OnInit {
   }
 
   addComment(): void {
-    if (!this.canComment()) return;
+    const file = this.currentFile();
+    if (!file || !this.canComment()) return;
     const text = this.newCommentText().trim();
     if (!text) return;
 
-    const user = this.authService.currentUser();
-    const authorName = user
-      ? `${user.name || ''} ${user.lastName || ''}`.trim() || user.email
-      : 'Usuario Actual';
-
-    const newComment: FileComment = {
-      _id: `comment-${Date.now()}`,
-      authorId: user?._id || (user as any)?.id || 'current-user',
-      authorName,
-      authorEmail: user?.email,
-      content: text,
-      createdAt: new Date().toISOString(),
-    };
-
-    this.comments.update((list) => [newComment, ...list]);
-    this.newCommentText.set('');
-    this.syncMetadataToMemory();
-    this.showNotification('Comentario agregado al documento');
+    this.isAddingComment.set(true);
+    this.resourceService.addFileComment(file._id, text).subscribe({
+      next: (res) => {
+        this.isAddingComment.set(false);
+        if (res.data) {
+          this.comments.update((list) => [res.data, ...list]);
+        }
+        this.newCommentText.set('');
+        this.showNotification('Comentario agregado al documento');
+      },
+      error: (err) => {
+        this.isAddingComment.set(false);
+        const msg = err?.error?.mensaje || 'No se pudo agregar el comentario';
+        this.showNotification(msg);
+      },
+    });
   }
 
   /**
@@ -285,21 +325,43 @@ export class FileWorkspace implements OnInit {
    */
   isCommentOwner(comment: FileComment): boolean {
     const user = this.authService.currentUser();
-    const currentUserId = user?._id || (user as any)?.id || 'current-user';
-    if (comment.authorId && comment.authorId === currentUserId) {
+    if (!user) return false;
+    const currentUserId = String(user._id || (user as any).id || '');
+    const authorIdStr =
+      typeof comment.authorId === 'object' && comment.authorId !== null
+        ? String((comment.authorId as any)._id || '')
+        : String(comment.authorId || '');
+
+    if (currentUserId && authorIdStr && currentUserId === authorIdStr) {
       return true;
     }
-    if (user?.email && comment.authorEmail && user.email === comment.authorEmail) {
+    if (
+      user.email &&
+      comment.authorEmail &&
+      user.email.toLowerCase() === comment.authorEmail.toLowerCase()
+    ) {
       return true;
     }
     return false;
   }
 
   deleteComment(comment: FileComment): void {
-    if (!this.isCommentOwner(comment)) return;
-    this.comments.update((list) => list.filter((c) => c._id !== comment._id));
-    this.syncMetadataToMemory();
-    this.showNotification('Comentario eliminado');
+    const file = this.currentFile();
+    if (!file || !this.isCommentOwner(comment)) return;
+
+    this.isDeletingCommentId.set(comment._id);
+    this.resourceService.deleteFileComment(file._id, comment._id).subscribe({
+      next: () => {
+        this.isDeletingCommentId.set(null);
+        this.comments.update((list) => list.filter((c) => c._id !== comment._id));
+        this.showNotification('Comentario eliminado');
+      },
+      error: (err) => {
+        this.isDeletingCommentId.set(null);
+        const msg = err?.error?.mensaje || 'No se pudo eliminar el comentario';
+        this.showNotification(msg);
+      },
+    });
   }
 
   // COMPARTIR Y GESTIONAR PERMISOS
@@ -316,7 +378,8 @@ export class FileWorkspace implements OnInit {
   }
 
   inviteCollaborator(): void {
-    if (!this.canManageSharing()) return;
+    const file = this.currentFile();
+    if (!file || !this.canManageSharing()) return;
 
     const emailOrUser = this.inviteEmail().trim().toLowerCase();
     if (!emailOrUser) {
@@ -336,51 +399,71 @@ export class FileWorkspace implements OnInit {
       return;
     }
 
-    const exists = this.sharedUsers().some(
-      (u) => (u.userEmail || '').toLowerCase() === emailOrUser,
-    );
-    if (exists) {
-      this.shareError.set(
-        'Este usuario ya cuenta con acceso al documento. Puedes cambiar su permiso en la lista inferior.',
-      );
-      return;
-    }
-
-    const displayName = emailOrUser
-      .split('@')[0]
-      .replace(/[._-]/g, ' ')
-      .replace(/\b\w/g, (l) => l.toUpperCase());
-
-    const newEntry: SharedUserEntry = {
-      userId: `user-${Date.now()}`,
-      userName: displayName,
-      userEmail: emailOrUser,
-      permission: this.invitePermission(),
-    };
-
-    this.sharedUsers.update((list) => [...list, newEntry]);
-    this.inviteEmail.set('');
+    this.isSharing.set(true);
     this.shareError.set(null);
-    this.syncMetadataToMemory();
-    this.showNotification(
-      `Se otorgó permiso de ${this.formatPermissionLabel(newEntry.permission)} a ${emailOrUser}`,
-    );
+
+    this.resourceService
+      .shareResource(file._id, { email: emailOrUser, permission: this.invitePermission() })
+      .subscribe({
+        next: (res) => {
+          this.isSharing.set(false);
+          if (res.data?.sharedWith) {
+            this.sharedUsers.set(res.data.sharedWith);
+          }
+          this.inviteEmail.set('');
+          this.showNotification(
+            `Se otorgó permiso de ${this.formatPermissionLabel(this.invitePermission())} a ${emailOrUser}`,
+          );
+        },
+        error: (err) => {
+          this.isSharing.set(false);
+          const msg = err?.error?.mensaje || 'No se pudo compartir el archivo con el usuario';
+          this.shareError.set(msg);
+        },
+      });
   }
 
   updateCollaboratorPermission(userId: string, permission: ResourcePermission): void {
-    if (!this.canManageSharing()) return;
-    this.sharedUsers.update((list) =>
-      list.map((u) => (u.userId === userId ? { ...u, permission } : u)),
-    );
-    this.syncMetadataToMemory();
-    this.showNotification('Nivel de permiso actualizado');
+    const file = this.currentFile();
+    if (!file || !this.canManageSharing()) return;
+
+    const entry = this.sharedUsers().find((u) => u.userId === userId);
+    if (!entry || !entry.userEmail) {
+      return;
+    }
+
+    this.resourceService.shareResource(file._id, { email: entry.userEmail, permission }).subscribe({
+      next: (res) => {
+        if (res.data?.sharedWith) {
+          this.sharedUsers.set(res.data.sharedWith);
+        }
+        this.showNotification('Nivel de permiso actualizado');
+      },
+      error: (err) => {
+        const msg = err?.error?.mensaje || 'No se pudo actualizar el permiso';
+        this.showNotification(msg);
+      },
+    });
   }
 
   removeCollaborator(userId: string): void {
-    if (!this.canManageSharing()) return;
-    this.sharedUsers.update((list) => list.filter((u) => u.userId !== userId));
-    this.syncMetadataToMemory();
-    this.showNotification('Acceso revocado para el usuario seleccionado');
+    const file = this.currentFile();
+    if (!file || !this.canManageSharing()) return;
+
+    this.resourceService.removeSharedUser(file._id, userId).subscribe({
+      next: (res) => {
+        if (res.data?.sharedWith) {
+          this.sharedUsers.set(res.data.sharedWith);
+        } else {
+          this.sharedUsers.update((list) => list.filter((u) => u.userId !== userId));
+        }
+        this.showNotification('Acceso revocado para el usuario seleccionado');
+      },
+      error: (err) => {
+        const msg = err?.error?.mensaje || 'No se pudo revocar el acceso del usuario';
+        this.showNotification(msg);
+      },
+    });
   }
 
   // DESCARGAR DOCUMENTO
@@ -423,10 +506,13 @@ export class FileWorkspace implements OnInit {
   }
 
   saveAndCloseWorkspace(): void {
-    this.saveChanges();
-    setTimeout(() => {
+    if (this.hasUnsavedChanges()) {
+      this.saveChanges(() => {
+        this.confirmCloseWorkspace();
+      });
+    } else {
       this.confirmCloseWorkspace();
-    }, 280);
+    }
   }
 
   private syncMetadataToMemory(): void {

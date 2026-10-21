@@ -7,6 +7,7 @@ import {
   BreadcrumbItem,
   CreateFileRequest,
   CreateFolderRequest,
+  FileComment,
   FileDownloadResponse,
   FileItem,
   FolderItem,
@@ -62,6 +63,90 @@ export class ResourceService {
   }
 
   /**
+   * Obtiene el detalle completo de un archivo (contenido, comentarios y usuarios con acceso)
+   */
+  getFileDetails(fileId: string): Observable<{ status: string; data: FileItem }> {
+    return this.http.get<{ status: string; data: FileItem }>(`${this.apiUrl}/files/${fileId}`).pipe(
+      tap((res) => {
+        if (res.status === 'success' && res.data) {
+          this.updateFileInMemory(res.data);
+        }
+      }),
+    );
+  }
+
+  /**
+   * Guarda cambios realizados al archivo (nombre, contenido y/o etiquetas)
+   */
+  saveFileChanges(
+    fileId: string,
+    data: { name?: string; content?: string; tags?: string[] },
+  ): Observable<{ status: string; mensaje: string; data: FileItem }> {
+    return this.http
+      .put<{ status: string; mensaje: string; data: FileItem }>(
+        `${this.apiUrl}/files/${fileId}`,
+        data,
+      )
+      .pipe(
+        tap((res) => {
+          if (res.status === 'success' && res.data) {
+            this.updateFileInMemory(res.data);
+          }
+        }),
+      );
+  }
+
+  /**
+   * Agrega un nuevo comentario al archivo
+   */
+  addFileComment(
+    fileId: string,
+    content: string,
+  ): Observable<{ status: string; mensaje: string; data: FileComment }> {
+    return this.http.post<{ status: string; mensaje: string; data: FileComment }>(
+      `${this.apiUrl}/files/${fileId}/comments`,
+      { content },
+    );
+  }
+
+  /**
+   * Elimina un comentario de un archivo
+   */
+  deleteFileComment(
+    fileId: string,
+    commentId: string,
+  ): Observable<{ status: string; mensaje: string }> {
+    return this.http.delete<{ status: string; mensaje: string }>(
+      `${this.apiUrl}/files/${fileId}/comments/${commentId}`,
+    );
+  }
+
+  /**
+   * Comparte un recurso (archivo o carpeta) con un usuario mediante su correo electrónico
+   */
+  shareResource(
+    resourceId: string,
+    data: { email: string; permission: string },
+  ): Observable<{ status: string; mensaje: string; data: any }> {
+    return this.http.post<{ status: string; mensaje: string; data: any }>(
+      `${this.apiUrl}/${resourceId}/share`,
+      data,
+    );
+  }
+
+  /**
+   * Revoca el acceso a un colaborador en un archivo o carpeta
+   */
+  removeSharedUser(
+    resourceId: string,
+    userId: string,
+  ): Observable<{ status: string; mensaje: string; data: any }> {
+    return this.http.delete<{ status: string; mensaje: string; data: any }>(
+      `${this.apiUrl}/${resourceId}/share/${userId}`,
+    );
+  }
+
+  /**
    * Obtiene el contenido textual (.txt o .md) del archivo desde el servidor sin disparar descarga del navegador
    */
   fetchFileContent(fileId: string): Observable<FileDownloadResponse> {
@@ -76,7 +161,7 @@ export class ResourceService {
     if (currentWs && currentWs.file._id === updatedFile._id) {
       this.activeWorkspace.set({
         ...currentWs,
-        file: { ...updatedFile },
+        file: { ...currentWs.file, ...updatedFile },
       });
     }
 

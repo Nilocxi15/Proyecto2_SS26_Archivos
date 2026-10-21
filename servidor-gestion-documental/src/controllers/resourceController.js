@@ -77,6 +77,144 @@ const createFile = async (req, res, next) => {
 };
 
 /**
+ * GET /api/resources/files/:id
+ * Obtiene el detalle completo de un archivo (contenido, comentarios, personas con acceso y permisos)
+ */
+const getFileDetails = async (req, res, next) => {
+  try {
+    const userId = req.user._id || req.user.id;
+    const { id } = req.params;
+
+    const file = await resourceService.getFileDetails(userId, id);
+
+    return res.status(200).json({
+      status: "success",
+      data: file,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * PUT /api/resources/files/:id
+ * Guarda cambios en el nombre, contenido y/o etiquetas de un archivo según permisos
+ */
+const updateFile = async (req, res, next) => {
+  try {
+    const userId = req.user._id || req.user.id;
+    const { id } = req.params;
+    const { name, content, tags } = req.body;
+
+    const updated = await resourceService.updateFile(userId, id, {
+      name,
+      content,
+      tags,
+    });
+
+    return res.status(200).json({
+      status: "success",
+      mensaje: "Documento actualizado exitosamente",
+      data: updated,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * POST /api/resources/files/:id/comments
+ * Agrega un nuevo comentario al archivo
+ */
+const addComment = async (req, res, next) => {
+  try {
+    const userId = req.user._id || req.user.id;
+    const { id } = req.params;
+    const { content } = req.body;
+
+    const comment = await resourceService.addComment(userId, id, content);
+
+    return res.status(201).json({
+      status: "success",
+      mensaje: "Comentario agregado exitosamente",
+      data: comment,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * DELETE /api/resources/files/:id/comments/:commentId
+ * Elimina un comentario (solo el autor o el propietario del archivo)
+ */
+const deleteComment = async (req, res, next) => {
+  try {
+    const userId = req.user._id || req.user.id;
+    const { id, commentId } = req.params;
+
+    const result = await resourceService.deleteComment(userId, id, commentId);
+
+    return res.status(200).json({
+      status: "success",
+      mensaje: result.mensaje,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * POST /api/resources/:id/share
+ * Comparte un archivo o carpeta con un usuario asignando permisos (lectura, comentar o edicion)
+ */
+const shareResource = async (req, res, next) => {
+  try {
+    const userId = req.user._id || req.user.id;
+    const { id } = req.params;
+    const { email, permission } = req.body;
+
+    const result = await sharedResourcesService.shareResource(userId, id, {
+      email,
+      permission,
+    });
+
+    return res.status(200).json({
+      status: "success",
+      mensaje: `Recurso compartido exitosamente con ${result.targetUser.userEmail}`,
+      data: result,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * DELETE /api/resources/:id/share/:userId
+ * Revoca el acceso a un colaborador en un archivo o carpeta
+ */
+const removeSharedUser = async (req, res, next) => {
+  try {
+    const userId = req.user._id || req.user.id;
+    const { id, userId: targetUserId } = req.params;
+
+    const result = await sharedResourcesService.removeSharedUser(
+      userId,
+      id,
+      targetUserId,
+    );
+
+    return res.status(200).json({
+      status: "success",
+      mensaje: "Acceso revocado exitosamente",
+      data: result,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
  * GET /api/resources/compartido-conmigo
  * Obtiene las carpetas y archivos compartidos con el usuario autenticado.
  * Query params opcionales:
@@ -133,11 +271,12 @@ const toggleTrash = async (req, res, next) => {
 
     const { moveToTrash } = req.body;
 
-    const updatedResource = await recycleBinResourcesService.moveToTrashOrRestore(
-      userId,
-      id,
-      moveToTrash,
-    );
+    const updatedResource =
+      await recycleBinResourcesService.moveToTrashOrRestore(
+        userId,
+        id,
+        moveToTrash,
+      );
 
     return res.status(200).json({
       status: "success",
@@ -161,10 +300,8 @@ const deleteResource = async (req, res, next) => {
     const userId = req.user._id || req.user.id;
     const { id } = req.params;
 
-    const deletedInfo = await recycleBinResourcesService.deleteResourcePermanently(
-      userId,
-      id,
-    );
+    const deletedInfo =
+      await recycleBinResourcesService.deleteResourcePermanently(userId, id);
 
     return res.status(200).json({
       status: "success",
@@ -208,4 +345,10 @@ module.exports = {
   downloadFile,
   createFolder,
   createFile,
+  getFileDetails,
+  updateFile,
+  addComment,
+  deleteComment,
+  shareResource,
+  removeSharedUser,
 };
