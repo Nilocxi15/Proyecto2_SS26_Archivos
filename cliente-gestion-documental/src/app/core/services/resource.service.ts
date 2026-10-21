@@ -3,9 +3,11 @@ import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable, tap, catchError, throwError } from 'rxjs';
 import { environment } from '../../../environments/environment';
 import {
+  ActiveWorkspaceContext,
   BreadcrumbItem,
   CreateFileRequest,
   CreateFolderRequest,
+  FileComment,
   FileDownloadResponse,
   FileItem,
   FolderItem,
@@ -42,6 +44,135 @@ export class ResourceService {
   readonly trashBreadcrumbs = signal<BreadcrumbItem[]>([]);
   readonly isTrashLoading = signal<boolean>(false);
   readonly trashError = signal<string | null>(null);
+
+  // Estado reactivo para el visor/editor de documentos (Workspace tipo Google Docs)
+  readonly activeWorkspace = signal<ActiveWorkspaceContext | null>(null);
+
+  /**
+   * Abre un archivo en la vista de espacio de trabajo (lectura, edición, comentarios y permisos)
+   */
+  openFileInWorkspace(file: FileItem, origin: 'my-files' | 'shared'): void {
+    this.activeWorkspace.set({ file: { ...file }, origin });
+  }
+
+  /**
+   * Cierra el espacio de trabajo activo y regresa al listado de origen
+   */
+  closeFileWorkspace(): void {
+    this.activeWorkspace.set(null);
+  }
+
+  /**
+   * Obtiene el detalle completo de un archivo (contenido, comentarios y usuarios con acceso)
+   */
+  getFileDetails(fileId: string): Observable<{ status: string; data: FileItem }> {
+    return this.http.get<{ status: string; data: FileItem }>(`${this.apiUrl}/files/${fileId}`).pipe(
+      tap((res) => {
+        if (res.status === 'success' && res.data) {
+          this.updateFileInMemory(res.data);
+        }
+      }),
+    );
+  }
+
+  /**
+   * Guarda cambios realizados al archivo (nombre, contenido y/o etiquetas)
+   */
+  saveFileChanges(
+    fileId: string,
+    data: { name?: string; content?: string; tags?: string[] },
+  ): Observable<{ status: string; mensaje: string; data: FileItem }> {
+    return this.http
+      .put<{ status: string; mensaje: string; data: FileItem }>(
+        `${this.apiUrl}/files/${fileId}`,
+        data,
+      )
+      .pipe(
+        tap((res) => {
+          if (res.status === 'success' && res.data) {
+            this.updateFileInMemory(res.data);
+          }
+        }),
+      );
+  }
+
+  /**
+   * Agrega un nuevo comentario al archivo
+   */
+  addFileComment(
+    fileId: string,
+    content: string,
+  ): Observable<{ status: string; mensaje: string; data: FileComment }> {
+    return this.http.post<{ status: string; mensaje: string; data: FileComment }>(
+      `${this.apiUrl}/files/${fileId}/comments`,
+      { content },
+    );
+  }
+
+  /**
+   * Elimina un comentario de un archivo
+   */
+  deleteFileComment(
+    fileId: string,
+    commentId: string,
+  ): Observable<{ status: string; mensaje: string }> {
+    return this.http.delete<{ status: string; mensaje: string }>(
+      `${this.apiUrl}/files/${fileId}/comments/${commentId}`,
+    );
+  }
+
+  /**
+   * Comparte un recurso (archivo o carpeta) con un usuario mediante su correo electrónico
+   */
+  shareResource(
+    resourceId: string,
+    data: { email: string; permission: string },
+  ): Observable<{ status: string; mensaje: string; data: any }> {
+    return this.http.post<{ status: string; mensaje: string; data: any }>(
+      `${this.apiUrl}/${resourceId}/share`,
+      data,
+    );
+  }
+
+  /**
+   * Revoca el acceso a un colaborador en un archivo o carpeta
+   */
+  removeSharedUser(
+    resourceId: string,
+    userId: string,
+  ): Observable<{ status: string; mensaje: string; data: any }> {
+    return this.http.delete<{ status: string; mensaje: string; data: any }>(
+      `${this.apiUrl}/${resourceId}/share/${userId}`,
+    );
+  }
+
+  /**
+   * Obtiene el contenido textual (.txt o .md) del archivo desde el servidor sin disparar descarga del navegador
+   */
+  fetchFileContent(fileId: string): Observable<FileDownloadResponse> {
+    return this.http.get<FileDownloadResponse>(`${this.apiUrl}/files/${fileId}/download`);
+  }
+
+  /**
+   * Actualiza en memoria los cambios realizados al documento en el espacio de trabajo
+   */
+  updateFileInMemory(updatedFile: FileItem): void {
+    const currentWs = this.activeWorkspace();
+    if (currentWs && currentWs.file._id === updatedFile._id) {
+      this.activeWorkspace.set({
+        ...currentWs,
+        file: { ...currentWs.file, ...updatedFile },
+      });
+    }
+
+    this.files.update((list) =>
+      list.map((item) => (item._id === updatedFile._id ? { ...item, ...updatedFile } : item)),
+    );
+
+    this.sharedFiles.update((list) =>
+      list.map((item) => (item._id === updatedFile._id ? { ...item, ...updatedFile } : item)),
+    );
+  }
 
   /**
    * Carga los archivos y carpetas del usuario según el folderId (raíz si es null o vacío)
@@ -141,6 +272,36 @@ export class ResourceService {
         return throwError(() => err);
       }),
     );
+  }
+
+  /**
+   * Obtiene todas las carpetas activas del usuario para traslados o exploraciones
+   */
+  getAllFolders(): Observable<{ status: string; data: FolderItem[] }> {
+    return this.http.get<{ status: string; data: FolderItem[] }>(`${this.apiUrl}/folders`);
+  }
+
+  /**
+   * Mueve un archivo a otra carpeta de destino o a la raíz
+   * @param fileId ID del archivo a mover
+   * @param targetFolderId ID de la carpeta destino (null para la raíz)
+   */
+  moveFile(
+    fileId: string,
+    targetFolderId: string | null,
+  ): Observable<{ status: string; mensaje: string; data: FileItem }> {
+    return this.http
+      .put<{ status: string; mensaje: string; data: FileItem }>(
+        `${this.apiUrl}/files/${fileId}/move`,
+        { targetFolderId },
+      )
+      .pipe(
+        tap(() => {
+          // Refrescar la carpeta actual tras el movimiento
+          const currentId = this.currentFolder()?._id || null;
+          this.loadMisArchivos(currentId).subscribe();
+        }),
+      );
   }
 
   /**

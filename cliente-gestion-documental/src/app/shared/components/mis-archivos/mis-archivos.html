@@ -74,6 +74,16 @@
 
   <!-- Botones de Acción: Disponibles tanto en la raíz como dentro de cualquier carpeta -->
   <div class="d-flex align-items-center gap-2">
+    <!-- Botón Crear Archivo -->
+    <button
+      type="button"
+      class="btn btn-primary d-flex align-items-center rounded-pill px-3 py-2 shadow-sm fw-medium"
+      (click)="openCreateFileModal()"
+    >
+      <i class="bi bi-file-earmark-plus me-2 fs-5"></i>
+      <span>Nuevo Archivo</span>
+    </button>
+
     <!-- Botón Crear Carpeta -->
     <button
       type="button"
@@ -87,7 +97,7 @@
     <!-- Botón Subir Archivo -->
     <button
       type="button"
-      class="btn btn-primary d-flex align-items-center rounded-pill px-3 py-2 shadow-sm fw-medium"
+      class="btn btn-outline-secondary d-flex align-items-center rounded-pill px-3 py-2 shadow-sm fw-medium"
       (click)="openUploadFileModal()"
     >
       <i class="bi bi-cloud-arrow-up me-2 fs-5"></i>
@@ -269,7 +279,11 @@
               >
                 <div>
                   <div class="d-flex align-items-start justify-content-between mb-2">
-                    <div class="d-flex align-items-center gap-2">
+                    <div
+                      class="d-flex align-items-center gap-2 cursor-pointer"
+                      (click)="openFileWorkspace(file)"
+                      title="Abrir documento en el editor"
+                    >
                       @if (file.extension === 'md' || file.extension === '.md') {
                         <i class="bi bi-markdown-fill text-info fs-2" title="Archivo Markdown"></i>
                       } @else {
@@ -300,6 +314,14 @@
                     </div>
 
                     <div class="d-flex align-items-center gap-1">
+                      <button
+                        type="button"
+                        class="btn btn-sm btn-outline-primary border-0 rounded-circle"
+                        (click)="openFileWorkspace(file)"
+                        title="Abrir y editar documento"
+                      >
+                        <i class="bi bi-pencil-square"></i>
+                      </button>
                       @if (!file.isTrash) {
                         <button
                           type="button"
@@ -308,6 +330,14 @@
                           title="Descargar archivo"
                         >
                           <i class="bi bi-download"></i>
+                        </button>
+                        <button
+                          type="button"
+                          class="btn btn-sm btn-outline-primary border-0 rounded-circle"
+                          (click)="openMoveModal(file)"
+                          title="Mover a otra carpeta"
+                        >
+                          <i class="bi bi-folder-symlink"></i>
                         </button>
                       }
                       <button
@@ -329,7 +359,11 @@
                     </div>
                   </div>
 
-                  <h3 class="h6 fw-semibold text-dark text-truncate mb-1" title="{{ file.name }}">
+                  <h3
+                    class="h6 fw-semibold text-dark text-truncate mb-1 cursor-pointer"
+                    title="Abrir {{ file.name }}"
+                    (click)="openFileWorkspace(file)"
+                  >
                     {{ file.name }}
                   </h3>
                 </div>
@@ -338,7 +372,12 @@
                   class="d-flex justify-content-between align-items-center text-muted small mt-3 pt-2 border-top"
                 >
                   <span>{{ formatFileSize(file.sizeBytes) }}</span>
-                  <span>{{ formatDate(file.updatedAt) }}</span>
+                  <span
+                    class="cursor-pointer text-primary fw-medium"
+                    (click)="openFileWorkspace(file)"
+                  >
+                    Abrir <i class="bi bi-arrow-right-short"></i>
+                  </span>
                 </div>
               </div>
             </div>
@@ -364,7 +403,11 @@
                 @for (file of filteredFiles(); track file._id) {
                   <tr>
                     <td class="ps-3">
-                      <div class="d-flex align-items-center gap-2">
+                      <div
+                        class="d-flex align-items-center gap-2 cursor-pointer"
+                        (click)="openFileWorkspace(file)"
+                        title="Abrir documento"
+                      >
                         @if (file.extension === 'md' || file.extension === '.md') {
                           <i class="bi bi-markdown-fill text-info fs-5"></i>
                         } @else {
@@ -394,14 +437,30 @@
                     <td class="text-muted small">{{ formatDate(file.updatedAt) }}</td>
                     <td class="text-end pe-3">
                       <div class="d-inline-flex align-items-center gap-2">
+                        <button
+                          type="button"
+                          class="btn btn-sm btn-primary rounded-pill px-3"
+                          (click)="openFileWorkspace(file)"
+                          title="Abrir y editar documento"
+                        >
+                          <i class="bi bi-pencil-square me-1"></i> Abrir
+                        </button>
                         @if (!file.isTrash) {
                           <button
                             type="button"
-                            class="btn btn-sm btn-primary rounded-pill px-3"
+                            class="btn btn-sm btn-outline-primary rounded-pill px-3"
                             (click)="downloadFile(file)"
                             title="Descargar archivo"
                           >
                             <i class="bi bi-download me-1"></i> Descargar
+                          </button>
+                          <button
+                            type="button"
+                            class="btn btn-sm btn-outline-primary rounded-pill px-3"
+                            (click)="openMoveModal(file)"
+                            title="Mover a otra carpeta"
+                          >
+                            <i class="bi bi-folder-symlink me-1"></i> Mover
                           </button>
                         }
                         <button
@@ -414,7 +473,7 @@
                         </button>
                         <button
                           type="button"
-                          class="btn btn-sm btn-outline-primary rounded-pill px-3"
+                          class="btn btn-sm btn-outline-secondary rounded-pill px-3"
                           (click)="openFileDetails(file)"
                         >
                           <i class="bi bi-info-circle me-1"></i> Detalles
@@ -455,13 +514,19 @@
       </p>
       @if (!searchTerm()) {
         <div class="d-flex justify-content-center gap-2">
+          <button class="btn btn-primary btn-sm rounded-pill px-3" (click)="openCreateFileModal()">
+            <i class="bi bi-file-earmark-plus me-1"></i> Crear Archivo
+          </button>
           <button
             class="btn btn-outline-primary btn-sm rounded-pill px-3"
             (click)="openNewFolderModal()"
           >
             <i class="bi bi-folder-plus me-1"></i> Crear Carpeta
           </button>
-          <button class="btn btn-primary btn-sm rounded-pill px-3" (click)="openUploadFileModal()">
+          <button
+            class="btn btn-outline-secondary btn-sm rounded-pill px-3"
+            (click)="openUploadFileModal()"
+          >
             <i class="bi bi-cloud-arrow-up me-1"></i> Subir Archivo
           </button>
         </div>
@@ -531,6 +596,168 @@
             (click)="confirmCreateFolder()"
           >
             <i class="bi bi-check-lg me-1"></i> Crear Carpeta
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+}
+
+<!-- MODAL: CREAR ARCHIVO DIGITAL -->
+@if (isCreateFileModalVisible()) {
+  <div class="modal fade show d-block background-modal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content border-0 shadow-lg rounded-3">
+        <div class="modal-header border-bottom py-3">
+          <div class="d-flex align-items-center gap-2">
+            <i class="bi bi-file-earmark-plus text-primary fs-4"></i>
+            <h5 class="modal-title h6 fw-bold mb-0">Crear Nuevo Archivo</h5>
+          </div>
+          <button
+            type="button"
+            class="btn-close"
+            aria-label="Cerrar"
+            (click)="closeCreateFileModal()"
+          ></button>
+        </div>
+
+        <div class="modal-body p-4">
+          @if (createFileError()) {
+            <div class="alert alert-danger py-2 px-3 small border-0 mb-3" role="alert">
+              <i class="bi bi-exclamation-circle me-1"></i> {{ createFileError() }}
+            </div>
+          }
+
+          <!-- Formato / Tipo de archivo -->
+          <div class="mb-3">
+            <label class="form-label small fw-semibold text-secondary d-block">
+              Tipo de documento
+            </label>
+            <div class="d-flex gap-3">
+              <div class="form-check">
+                <input
+                  class="form-check-input"
+                  type="radio"
+                  name="fileExtensionRadio"
+                  id="extTxtRadio"
+                  value="txt"
+                  [checked]="newFileExtension() === 'txt'"
+                  (change)="newFileExtension.set('txt')"
+                />
+                <label class="form-check-label small fw-medium" for="extTxtRadio">
+                  <i class="bi bi-file-earmark-text text-primary me-1"></i> Archivo de Texto (.txt)
+                </label>
+              </div>
+              <div class="form-check">
+                <input
+                  class="form-check-input"
+                  type="radio"
+                  name="fileExtensionRadio"
+                  id="extMdRadio"
+                  value="md"
+                  [checked]="newFileExtension() === 'md'"
+                  (change)="newFileExtension.set('md')"
+                />
+                <label class="form-check-label small fw-medium" for="extMdRadio">
+                  <i class="bi bi-markdown text-info me-1"></i> Markdown (.md)
+                </label>
+              </div>
+            </div>
+          </div>
+
+          <!-- Nombre del documento -->
+          <div class="mb-3">
+            <label for="createFileNameInput" class="form-label small fw-semibold text-secondary">
+              Nombre del archivo
+            </label>
+            <div class="input-group">
+              <input
+                id="createFileNameInput"
+                type="text"
+                class="form-control"
+                placeholder="ej. notas-reunion, reporte-auditoria"
+                [ngModel]="newFileName()"
+                (ngModelChange)="newFileName.set($event)"
+                (keydown.enter)="confirmCreateFile()"
+                autofocus
+              />
+              <span class="input-group-text bg-light text-muted fw-semibold">
+                .{{ newFileExtension() }}
+              </span>
+            </div>
+          </div>
+
+          <!-- Contenido inicial (opcional) -->
+          <div class="mb-3">
+            <label for="createFileContentInput" class="form-label small fw-semibold text-secondary">
+              Contenido inicial <span class="text-muted fw-normal">(opcional)</span>
+            </label>
+            <textarea
+              id="createFileContentInput"
+              class="form-control font-monospace small"
+              rows="4"
+              placeholder="Escribe aquí el contenido con el que iniciará el documento..."
+              [ngModel]="newFileContent()"
+              (ngModelChange)="newFileContent.set($event)"
+            ></textarea>
+          </div>
+
+          <!-- Etiquetas (opcional) -->
+          <div class="mb-3">
+            <label for="createFileTagsInput" class="form-label small fw-semibold text-secondary">
+              Etiquetas <span class="text-muted fw-normal">(opcional, separadas por comas)</span>
+            </label>
+            <input
+              id="createFileTagsInput"
+              type="text"
+              class="form-control form-control-sm"
+              placeholder="ej. trabajo, reunion, borrador"
+              [ngModel]="newFileTags()"
+              (ngModelChange)="newFileTags.set($event)"
+            />
+          </div>
+
+          <!-- Opción: Abrir de inmediato en el editor -->
+          <div class="form-check mb-3">
+            <input
+              class="form-check-input"
+              type="checkbox"
+              id="openInEditorCheck"
+              [ngModel]="openInEditorOnCreate()"
+              (ngModelChange)="openInEditorOnCreate.set($event)"
+            />
+            <label class="form-check-label small text-secondary" for="openInEditorCheck">
+              Abrir en el editor de documentos tras crearlo
+            </label>
+          </div>
+
+          <!-- Ubicación de destino -->
+          <div class="text-muted small">
+            <i class="bi bi-info-circle me-1"></i>
+            Ubicación: <code>{{ currentPathText() || 'Raíz (/)' }}</code>
+          </div>
+        </div>
+
+        <div class="modal-footer border-top py-2">
+          <button
+            type="button"
+            class="btn btn-light btn-sm rounded-pill px-3"
+            (click)="closeCreateFileModal()"
+          >
+            Cancelar
+          </button>
+          <button
+            type="button"
+            class="btn btn-primary btn-sm rounded-pill px-3 fw-medium"
+            [disabled]="!newFileName().trim() || isCreatingFile()"
+            (click)="confirmCreateFile()"
+          >
+            @if (isCreatingFile()) {
+              <span class="spinner-border spinner-border-sm me-1" role="status"></span>
+              Creando...
+            } @else {
+              <i class="bi bi-check-lg me-1"></i> Crear Archivo
+            }
           </button>
         </div>
       </div>
@@ -727,10 +954,24 @@
               </button>
               <button
                 type="button"
-                class="btn btn-primary btn-sm rounded-pill px-3"
+                class="btn btn-outline-primary btn-sm rounded-pill px-3"
                 (click)="downloadFile(file)"
               >
                 <i class="bi bi-download me-1"></i> Descargar
+              </button>
+              <button
+                type="button"
+                class="btn btn-outline-primary btn-sm rounded-pill px-3"
+                (click)="openMoveModal(file)"
+              >
+                <i class="bi bi-folder-symlink me-1"></i> Mover
+              </button>
+              <button
+                type="button"
+                class="btn btn-primary btn-sm rounded-pill px-3"
+                (click)="openFileWorkspace(file)"
+              >
+                <i class="bi bi-pencil-square me-1"></i> Abrir en editor
               </button>
             }
           }
@@ -807,6 +1048,166 @@
             (click)="confirmMoveToTrash()"
           >
             <i class="bi bi-trash3 me-1"></i> Mover a la papelera
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+}
+
+<!-- MODAL: MOVER ARCHIVO A OTRA UBICACIÓN -->
+@if (isMoveModalVisible() && fileToMove(); as file) {
+  <div class="modal fade show d-block background-modal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content border-0 shadow-lg rounded-3">
+        <div class="modal-header border-bottom py-3">
+          <div class="d-flex align-items-center gap-2 min-w-0">
+            <i class="bi bi-folder-symlink-fill text-primary fs-4"></i>
+            <div class="min-w-0">
+              <h5 class="modal-title h6 fw-bold mb-0 text-truncate">
+                Mover "{{ file.name }}"
+              </h5>
+              <div class="text-muted small" style="font-size: 0.75rem">
+                Selecciona la carpeta de destino
+              </div>
+            </div>
+          </div>
+          <button
+            type="button"
+            class="btn-close"
+            aria-label="Cerrar"
+            (click)="closeMoveModal()"
+          ></button>
+        </div>
+
+        <div class="modal-body p-4">
+          @if (moveFileError()) {
+            <div class="alert alert-danger py-2 px-3 small border-0 mb-3" role="alert">
+              <i class="bi bi-exclamation-circle me-1"></i> {{ moveFileError() }}
+            </div>
+          }
+
+          <!-- Buscador rápido de carpetas si hay más de 3 -->
+          @if (destinationFolders().length > 3) {
+            <div class="mb-3">
+              <div class="input-group input-group-sm">
+                <span class="input-group-text bg-light border-end-0 text-muted">
+                  <i class="bi bi-search"></i>
+                </span>
+                <input
+                  type="text"
+                  class="form-control border-start-0"
+                  placeholder="Filtrar carpetas..."
+                  [ngModel]="folderSearchTerm()"
+                  (ngModelChange)="folderSearchTerm.set($event)"
+                />
+              </div>
+            </div>
+          }
+
+          <!-- Indicador de carga de carpetas -->
+          @if (isLoadingFolders()) {
+            <div class="text-center py-4 text-muted">
+              <div class="spinner-border spinner-border-sm text-primary mb-2" role="status"></div>
+              <div class="small">Cargando carpetas disponibles...</div>
+            </div>
+          } @else {
+            <div
+              class="destination-list d-flex flex-column gap-2"
+              style="max-height: 280px; overflow-y: auto;"
+            >
+              <!-- Opción: Directorio Raíz -->
+              <div
+                class="card p-2 border rounded-3 cursor-pointer"
+                [class.border-primary]="selectedDestinationFolderId() === null"
+                [class.bg-primary-subtle]="selectedDestinationFolderId() === null"
+                (click)="selectDestination(null)"
+              >
+                <div class="d-flex align-items-center justify-content-between">
+                  <div class="d-flex align-items-center gap-2">
+                    <i class="bi bi-house-door-fill text-primary fs-5"></i>
+                    <div>
+                      <span class="fw-semibold text-dark small d-block">Raíz (/)</span>
+                      <span class="text-muted" style="font-size: 0.72rem"
+                        >Directorio principal</span
+                      >
+                    </div>
+                  </div>
+                  @if (file.folderId === null) {
+                    <span class="badge bg-secondary-subtle text-secondary-emphasis small">
+                      Ubicación actual
+                    </span>
+                  } @else if (selectedDestinationFolderId() === null) {
+                    <i class="bi bi-check-circle-fill text-primary"></i>
+                  }
+                </div>
+              </div>
+
+              <!-- Lista de Carpetas -->
+              @for (folder of filteredDestinationFolders(); track folder._id) {
+                <div
+                  class="card p-2 border rounded-3 cursor-pointer"
+                  [class.border-primary]="selectedDestinationFolderId() === folder._id"
+                  [class.bg-primary-subtle]="selectedDestinationFolderId() === folder._id"
+                  (click)="selectDestination(folder._id)"
+                >
+                  <div class="d-flex align-items-center justify-content-between">
+                    <div class="d-flex align-items-center gap-2 min-w-0">
+                      <i class="bi bi-folder-fill text-warning fs-5 flex-shrink-0"></i>
+                      <div class="min-w-0">
+                        <span class="fw-semibold text-dark small text-truncate d-block">
+                          {{ folder.name }}
+                        </span>
+                        <span
+                          class="text-muted text-truncate d-block font-monospace"
+                          style="font-size: 0.72rem"
+                        >
+                          {{ folder.path }}
+                        </span>
+                      </div>
+                    </div>
+                    @if (file.folderId === folder._id) {
+                      <span
+                        class="badge bg-secondary-subtle text-secondary-emphasis small flex-shrink-0"
+                      >
+                        Ubicación actual
+                      </span>
+                    } @else if (selectedDestinationFolderId() === folder._id) {
+                      <i class="bi bi-check-circle-fill text-primary flex-shrink-0"></i>
+                    }
+                  </div>
+                </div>
+              }
+
+              @if (filteredDestinationFolders().length === 0 && destinationFolders().length > 0) {
+                <div class="text-center py-3 text-muted small">
+                  No se encontraron carpetas que coincidan con "{{ folderSearchTerm() }}".
+                </div>
+              }
+            </div>
+          }
+        </div>
+
+        <div class="modal-footer border-top py-2">
+          <button
+            type="button"
+            class="btn btn-light btn-sm rounded-pill px-3"
+            (click)="closeMoveModal()"
+          >
+            Cancelar
+          </button>
+          <button
+            type="button"
+            class="btn btn-primary btn-sm rounded-pill px-3 fw-medium"
+            [disabled]="isMovingFile() || selectedDestinationFolderId() === file.folderId"
+            (click)="confirmMoveFile()"
+          >
+            @if (isMovingFile()) {
+              <span class="spinner-border spinner-border-sm me-1" role="status"></span>
+              Moviendo...
+            } @else {
+              <i class="bi bi-folder-symlink me-1"></i> Mover aquí
+            }
           </button>
         </div>
       </div>

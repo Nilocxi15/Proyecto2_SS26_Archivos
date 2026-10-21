@@ -1,5 +1,6 @@
 const Folder = require("../models/Folder");
 const File = require("../models/File");
+const User = require("../models/User");
 const mongoose = require("mongoose");
 
 /**
@@ -151,19 +152,30 @@ const createFile = async (
   userId,
   { name, extension, content = "", folderId = null, tags = [] },
 ) => {
-  const cleanName = name;
+  const userObjectId = new mongoose.Types.ObjectId(userId);
+
   let ext = extension
-    ? extension.replace(".", "")
-    : cleanName.endsWith(".md")
+    ? extension.replace(".", "").toLowerCase()
+    : name.toLowerCase().endsWith(".md")
       ? "md"
       : "txt";
+
+  if (ext !== "txt" && ext !== "md") {
+    ext = "txt";
+  }
+
+  let cleanName = name.trim();
+  const suffix = `.${ext}`;
+  if (!cleanName.toLowerCase().endsWith(suffix)) {
+    cleanName = `${cleanName}${suffix}`;
+  }
 
   let cleanFolderId = null;
   if (folderId && folderId !== "null" && folderId !== "root") {
     cleanFolderId = new mongoose.Types.ObjectId(folderId);
     const parentFolder = await Folder.findOne({
       _id: cleanFolderId,
-      ownerId: userId,
+      ownerId: userObjectId,
       isTrash: false,
     });
     if (!parentFolder) {
@@ -177,7 +189,7 @@ const createFile = async (
 
   // Comprobar duplicado en la misma ubicación
   const existingFile = await File.findOne({
-    ownerId: userId,
+    ownerId: userObjectId,
     folderId: cleanFolderId,
     name: cleanName,
     isTrash: false,
@@ -200,16 +212,140 @@ const createFile = async (
     sizeBytes,
     content: fileContent,
     folderId: cleanFolderId,
-    ownerId: userId,
+    ownerId: userObjectId,
     tags: Array.isArray(tags) ? tags : [],
     sharedWith: [],
+    comments: [],
   });
 
-  return newFile;
+  const owner = await User.findById(userObjectId)
+    .select("name lastName email")
+    .lean();
+
+  return {
+    _id: newFile._id,
+    name: newFile.name,
+    extension: newFile.extension,
+    sizeBytes: newFile.sizeBytes,
+    content: newFile.content,
+    folderId: newFile.folderId,
+    tags: newFile.tags || [],
+    sharedWith: [],
+    comments: [],
+    isTrash: false,
+    myPermission: "propietario",
+    ownerId: userObjectId,
+    ownerName: owner
+      ? `${owner.name || ""} ${owner.lastName || ""}`.trim()
+      : "Propietario",
+    ownerEmail: owner ? owner.email : "",
+    createdAt: newFile.createdAt,
+    updatedAt: newFile.updatedAt,
+  };
+};
+
+
+/**
+ * Obtiene todas las carpetas activas del usuario ordenadas jerárquicamente por ruta
+ * @param {string|mongoose.Types.ObjectId} userId
+ */
+const getAllFolders = async (userId) => {
+  const userObjectId = new mongoose.Types.ObjectId(userId);
+  const folders = await Folder.find({
+    ownerId: userObjectId,
+    isTrash: false,
+  })
+    .select("_id name path parentId")
+    .sort({ path: 1 })
+    .lean();
+
+  return folders;
+};
+
+/**
+ * Mueve un archivo a otra carpeta de destino o a la raíz
+ * @param {string|mongoose.Types.ObjectId} userId
+ * @param {string} fileId
+ * @param {string|null} targetFolderId
+ */
+const moveFile = async (userId, fileId, targetFolderId) => {
+  const userObjectId = new mongoose.Types.ObjectId(userId);
+  const fileObjectId = new mongoose.Types.ObjectId(fileId);
+
+  const file = await File.findOne({
+    _id: fileObjectId,
+    ownerId: userObjectId,
+    isTrash: false,
+  });
+
+  if (!file) {
+    const error = new Error("El archivo no existe o no tienes permisos sobre él");
+    error.statusCode = 404;
+    throw error;
+  }
+
+  let cleanTargetFolderId = null;
+  let targetPathText = "la raíz (/)";
+
+  if (targetFolderId && targetFolderId !== "null" && targetFolderId !== "root") {
+    cleanTargetFolderId = new mongoose.Types.ObjectId(targetFolderId);
+    const targetFolder = await Folder.findOne({
+      _id: cleanTargetFolderId,
+      ownerId: userObjectId,
+      isTrash: false,
+    });
+
+    if (!targetFolder) {
+      const error = new Error(
+        "La carpeta de destino no existe o no tienes permisos sobre ella",
+      );
+      error.statusCode = 404;
+      throw error;
+    }
+    targetPathText = targetFolder.path || targetFolder.name;
+  }
+
+  // Verificar si ya está en esa ubicación
+  const currentFolderStr = file.folderId ? file.folderId.toString() : null;
+  const targetFolderStr = cleanTargetFolderId
+    ? cleanTargetFolderId.toString()
+    : null;
+  if (currentFolderStr === targetFolderStr) {
+    const error = new Error(
+      "El archivo ya se encuentra en la carpeta de destino seleccionada",
+    );
+    error.statusCode = 400;
+    throw error;
+  }
+
+  // Verificar colisión de nombres en la carpeta destino
+  const existingFile = await File.findOne({
+    _id: { $ne: file._id },
+    ownerId: userObjectId,
+    folderId: cleanTargetFolderId,
+    name: file.name,
+    isTrash: false,
+  });
+
+  if (existingFile) {
+    const error = new Error(
+      `Ya existe un archivo con el nombre "${file.name}" en ${targetPathText}`,
+    );
+    error.statusCode = 409;
+    throw error;
+  }
+
+  file.folderId = cleanTargetFolderId;
+  await file.save();
+
+  return file;
 };
 
 module.exports = {
   getMyFiles,
   createFolder,
   createFile,
+  getAllFolders,
+  moveFile,
 };
+

@@ -7,38 +7,43 @@
 
 <!-- Contenido Dinámico de la Sección de Administración -->
 <main class="container-fluid py-4 px-lg-5">
-  <!-- Sección Mis Archivos (Común) -->
-  @if (activeSection() === 'my-files') {
-    <app-mis-archivos></app-mis-archivos>
-  }
+  @if (resourceService.activeWorkspace()) {
+    <!-- Vista de Edición, Lectura, Comentarios y Permisos del Documento -->
+    <app-file-workspace></app-file-workspace>
+  } @else {
+    <!-- Sección Mis Archivos (Común) -->
+    @if (activeSection() === 'my-files') {
+      <app-mis-archivos></app-mis-archivos>
+    }
 
-  <!-- Sección Compartido conmigo (Común) -->
-  @if (activeSection() === 'shared') {
-    <app-compartido-conmigo></app-compartido-conmigo>
-  }
+    <!-- Sección Compartido conmigo (Común) -->
+    @if (activeSection() === 'shared') {
+      <app-compartido-conmigo></app-compartido-conmigo>
+    }
 
-  <!-- Sección Papelera (Común) -->
-  @if (activeSection() === 'trash') {
-    <app-papelera></app-papelera>
-  }
+    <!-- Sección Papelera (Común) -->
+    @if (activeSection() === 'trash') {
+      <app-papelera></app-papelera>
+    }
 
-  <!-- Sección Exclusiva: Gestionar Usuarios -->
-  @if (activeSection() === 'users') {
-    <app-user-management></app-user-management>
-  }
+    <!-- Sección Exclusiva: Gestionar Usuarios -->
+    @if (activeSection() === 'users') {
+      <app-user-management></app-user-management>
+    }
 
-  <!-- Sección Exclusiva: Historial de Actividad (Auditoría) -->
-  @if (activeSection() === 'activity') {
-    <app-activity-log></app-activity-log>
-  }
+    <!-- Sección Exclusiva: Historial de Actividad (Auditoría) -->
+    @if (activeSection() === 'activity') {
+      <app-activity-log></app-activity-log>
+    }
 
-  <!-- Sección Exclusiva: Reportes del Sistema -->
-  @if (activeSection() === 'reports') {
-    <app-system-reports></app-system-reports>
-  }
+    <!-- Sección Exclusiva: Reportes del Sistema -->
+    @if (activeSection() === 'reports') {
+      <app-system-reports></app-system-reports>
+    }
 
-  <!-- Sección Mi Perfil -->
-  @if (activeSection() === 'profile') {
-    <app-user-profile></app-user-profile>
+    <!-- Sección Mi Perfil -->
+    @if (activeSection() === 'profile') {
+      <app-user-profile></app-user-profile>
+    }
   }
 </main>

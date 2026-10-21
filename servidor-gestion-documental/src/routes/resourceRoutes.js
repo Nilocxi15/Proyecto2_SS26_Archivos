@@ -9,6 +9,12 @@ const {
   CreateFolderDto,
   CreateFileDto,
   ToggleTrashDto,
+  UpdateFileDto,
+  AddCommentDto,
+  CommentParamDto,
+  ShareResourceDto,
+  ShareUserParamDto,
+  MoveFileDto,
 } = require("../dtos/resource.dto");
 
 /**
@@ -49,6 +55,23 @@ router.put(
   resourceController.toggleTrash,
 );
 
+// Compartir un archivo o carpeta con un usuario asignando permisos
+router.post(
+  "/:id/share",
+  protectRoutes,
+  validarDto(ResourceIdParamDto, "params"),
+  validarDto(ShareResourceDto, "body"),
+  resourceController.shareResource,
+);
+
+// Revocar acceso a un usuario compartido en un archivo o carpeta
+router.delete(
+  "/:id/share/:userId",
+  protectRoutes,
+  validarDto(ShareUserParamDto, "params"),
+  resourceController.removeSharedUser,
+);
+
 // Eliminar permanentemente un archivo o carpeta de la papelera
 router.delete(
   "/:id",
@@ -56,6 +79,9 @@ router.delete(
   validarDto(ResourceIdParamDto, "params"),
   resourceController.deleteResource,
 );
+
+// Listar todas las carpetas activas del usuario (para traslados y selectores)
+router.get("/folders", protectRoutes, resourceController.getAllFolders);
 
 // Crear una nueva carpeta
 router.post(
@@ -65,12 +91,55 @@ router.post(
   resourceController.createFolder,
 );
 
+// Mover un archivo a otra carpeta de destino o a la raíz
+router.put(
+  "/files/:id/move",
+  protectRoutes,
+  validarDto(ResourceIdParamDto, "params"),
+  validarDto(MoveFileDto, "body"),
+  resourceController.moveFile,
+);
+
 // Subir/Crear un nuevo archivo .txt o .md
 router.post(
   "/files",
   protectRoutes,
   validarDto(CreateFileDto, "body"),
   resourceController.createFile,
+);
+
+// Obtener detalle completo de un archivo (contenido, comentarios, permisos y compartidos)
+router.get(
+  "/files/:id",
+  protectRoutes,
+  validarDto(ResourceIdParamDto, "params"),
+  resourceController.getFileDetails,
+);
+
+// Actualizar contenido, nombre y/o etiquetas de un archivo existente
+router.put(
+  "/files/:id",
+  protectRoutes,
+  validarDto(ResourceIdParamDto, "params"),
+  validarDto(UpdateFileDto, "body"),
+  resourceController.updateFile,
+);
+
+// Agregar un comentario a un archivo
+router.post(
+  "/files/:id/comments",
+  protectRoutes,
+  validarDto(ResourceIdParamDto, "params"),
+  validarDto(AddCommentDto, "body"),
+  resourceController.addComment,
+);
+
+// Eliminar un comentario de un archivo
+router.delete(
+  "/files/:id/comments/:commentId",
+  protectRoutes,
+  validarDto(CommentParamDto, "params"),
+  resourceController.deleteComment,
 );
 
 // Descargar un archivo activo (no en papelera)
