@@ -1,0 +1,319 @@
+<div class="user-reports-view">
+  <!-- Barra de Selección de Subreporte -->
+  <div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-3">
+    <div class="d-flex align-items-center gap-2">
+      <button
+        type="button"
+        class="btn btn-sm rounded-pill px-3 fw-medium"
+        [class.btn-primary]="activeSubReport() === 'storage-top10'"
+        [class.btn-outline-secondary]="activeSubReport() !== 'storage-top10'"
+        (click)="switchSubReport('storage-top10')"
+      >
+        Top 10 usuarios con mayor cantidad de archivos
+      </button>
+
+      <button
+        type="button"
+        class="btn btn-sm rounded-pill px-3 fw-medium"
+        [class.btn-primary]="activeSubReport() === 'shared-ranking'"
+        [class.btn-outline-secondary]="activeSubReport() !== 'shared-ranking'"
+        (click)="switchSubReport('shared-ranking')"
+      >
+        Usuarios con mayor cantidad de recursos compartidos
+      </button>
+    </div>
+
+    @if (lastUpdatedAt()) {
+      <div class="text-muted small">
+        Última actualización: {{ formatDate(lastUpdatedAt()?.toISOString()) }}
+      </div>
+    }
+  </div>
+
+  <!-- REPORTE 1: TOP 10 USUARIOS CON MAYOR CANTIDAD DE ARCHIVOS -->
+  @if (activeSubReport() === 'storage-top10') {
+    <div class="card border rounded-3 overflow-hidden shadow-sm bg-white">
+      <div class="card-header bg-light border-bottom py-3 px-4">
+        <div class="d-flex align-items-center justify-content-between">
+          <div>
+            <h2 class="h6 fw-bold text-dark mb-1">
+              Top 10 usuarios con mayor cantidad de archivos almacenados
+            </h2>
+            <p class="text-muted small mb-0">
+              Ranking de usuarios con mayor volumen documental y uso del almacenamiento en el
+              sistema.
+            </p>
+          </div>
+          <span class="badge bg-primary-subtle text-primary-emphasis rounded-pill px-3 py-2 small">
+            {{ storageTopUsers().length }} registros
+          </span>
+        </div>
+      </div>
+
+      <div class="card-body p-0">
+        @if (isLoading()) {
+          <div class="text-center py-5 text-muted">
+            <div class="spinner-border spinner-border-sm text-primary mb-2" role="status"></div>
+            <div class="small">Cargando reporte de almacenamiento...</div>
+          </div>
+        } @else if (storageTopUsers().length === 0) {
+          <!-- Estado Vacío sin registros -->
+          <div class="text-center py-5 px-3">
+            <div
+              class="empty-icon-circle bg-light text-muted mx-auto mb-3 d-flex align-items-center justify-content-center rounded-circle"
+              style="width: 64px; height: 64px"
+            >
+              <i class="bi bi-folder-x fs-2"></i>
+            </div>
+            <h3 class="h6 fw-semibold text-dark mb-1">No hay registros de archivos almacenados</h3>
+            <p class="text-muted small mx-auto mb-0" style="max-width: 460px">
+              Actualmente no se registran archivos cargados por usuarios en la plataforma. Cuando se
+              creen o suban documentos, aquí se visualizarán los 10 usuarios con mayor cantidad de
+              archivos.
+            </p>
+          </div>
+        } @else {
+          <!-- Tabla de Resultados -->
+          <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+              <thead class="table-light text-secondary small text-uppercase">
+                <tr>
+                  <th scope="col" class="ps-4 py-3" style="width: 70px">Posición</th>
+                  <th scope="col">Usuario</th>
+                  <th scope="col">Rol</th>
+                  <th scope="col">Estado</th>
+                  <th scope="col" class="text-center">Archivos Almacenados</th>
+                  <th scope="col" class="text-end pe-4">Espacio Ocupado</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (item of storageTopUsers(); track item.userId; let i = $index) {
+                  <tr>
+                    <td class="ps-4">
+                      @switch (i) {
+                        @case (0) {
+                          <span class="badge bg-warning text-dark rounded-pill px-2 py-1 fw-bold">
+                            #1
+                          </span>
+                        }
+                        @case (1) {
+                          <span
+                            class="badge bg-secondary-subtle text-dark rounded-pill px-2 py-1 fw-bold"
+                          >
+                            #2
+                          </span>
+                        }
+                        @case (2) {
+                          <span
+                            class="badge bg-info-subtle text-info-emphasis rounded-pill px-2 py-1 fw-bold"
+                          >
+                            #3
+                          </span>
+                        }
+                        @default {
+                          <span
+                            class="badge bg-light text-secondary rounded-pill px-2 py-1 fw-semibold"
+                          >
+                            #{{ i + 1 }}
+                          </span>
+                        }
+                      }
+                    </td>
+                    <td>
+                      <div class="d-flex align-items-center gap-2">
+                        <div
+                          class="avatar-circle bg-primary-subtle text-primary-emphasis fw-bold small rounded-circle d-flex align-items-center justify-content-center"
+                          style="width: 34px; height: 34px"
+                        >
+                          {{ getInitials(item.userName) }}
+                        </div>
+                        <div>
+                          <div class="fw-semibold text-dark small text-truncate">
+                            {{ item.userName }}
+                          </div>
+                          <div class="text-muted" style="font-size: 0.75rem">
+                            {{ item.userEmail }}
+                          </div>
+                        </div>
+                      </div>
+                    </td>
+                    <td>
+                      <span
+                        class="badge rounded-pill"
+                        [class.bg-purple-subtle]="item.role === 'admin'"
+                        [class.text-purple-emphasis]="item.role === 'admin'"
+                        [class.bg-light]="item.role !== 'admin'"
+                        [class.text-secondary]="item.role !== 'admin'"
+                      >
+                        {{ item.role === 'admin' ? 'Administrador' : 'Usuario' }}
+                      </span>
+                    </td>
+                    <td>
+                      @if (item.isActive !== false) {
+                        <span class="badge bg-success-subtle text-success-emphasis rounded-pill">
+                          Activo
+                        </span>
+                      } @else {
+                        <span class="badge bg-danger-subtle text-danger-emphasis rounded-pill">
+                          Inactivo
+                        </span>
+                      }
+                    </td>
+                    <td class="text-center">
+                      <span
+                        class="badge bg-primary-subtle text-primary-emphasis rounded-pill px-3 py-1 fw-bold"
+                      >
+                        {{ item.fileCount }}
+                      </span>
+                    </td>
+                    <td class="text-end pe-4 fw-semibold text-dark">
+                      {{ formatBytes(item.totalSizeBytes) }}
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        }
+      </div>
+    </div>
+  }
+
+  <!-- REPORTE 2: USUARIOS CON MAYOR CANTIDAD DE RECURSOS COMPARTIDOS -->
+  @if (activeSubReport() === 'shared-ranking') {
+    <div class="card border rounded-3 overflow-hidden shadow-sm bg-white">
+      <div class="card-header bg-light border-bottom py-3 px-4">
+        <div class="d-flex align-items-center justify-content-between">
+          <div>
+            <h2 class="h6 fw-bold text-dark mb-1">
+              Usuarios con mayor cantidad de recursos compartidos
+            </h2>
+            <p class="text-muted small mb-0">
+              Ranking de usuarios que han compartido carpetas y archivos con colaboradores del
+              sistema.
+            </p>
+          </div>
+          <span class="badge bg-info-subtle text-info-emphasis rounded-pill px-3 py-2 small">
+            {{ sharedTopUsers().length }} registros
+          </span>
+        </div>
+      </div>
+
+      <div class="card-body p-0">
+        @if (isLoading()) {
+          <div class="text-center py-5 text-muted">
+            <div class="spinner-border spinner-border-sm text-primary mb-2" role="status"></div>
+            <div class="small">Cargando reporte de compartición...</div>
+          </div>
+        } @else if (sharedTopUsers().length === 0) {
+          <!-- Estado Vacío sin registros -->
+          <div class="text-center py-5 px-3">
+            <div
+              class="empty-icon-circle bg-light text-muted mx-auto mb-3 d-flex align-items-center justify-content-center rounded-circle"
+              style="width: 64px; height: 64px"
+            >
+              <i class="bi bi-diagram-3 fs-2"></i>
+            </div>
+            <h3 class="h6 fw-semibold text-dark mb-1">No hay recursos compartidos registrados</h3>
+            <p class="text-muted small mx-auto mb-0" style="max-width: 460px">
+              Actualmente no se registran carpetas ni archivos compartidos entre usuarios. Cuando
+              los usuarios otorguen permisos de colaboración, el listado se actualizará
+              automáticamente.
+            </p>
+          </div>
+        } @else {
+          <!-- Tabla de Resultados -->
+          <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+              <thead class="table-light text-secondary small text-uppercase">
+                <tr>
+                  <th scope="col" class="ps-4 py-3" style="width: 70px">Posición</th>
+                  <th scope="col">Usuario Propietario</th>
+                  <th scope="col" class="text-center">Total Recursos Compartidos</th>
+                  <th scope="col">Desglose por Tipo</th>
+                  <th scope="col" class="text-end pe-4">Colaboradores Alcanzados</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (item of sharedTopUsers(); track item.userId; let i = $index) {
+                  <tr>
+                    <td class="ps-4">
+                      @switch (i) {
+                        @case (0) {
+                          <span class="badge bg-warning text-dark rounded-pill px-2 py-1 fw-bold">
+                            #1
+                          </span>
+                        }
+                        @case (1) {
+                          <span
+                            class="badge bg-secondary-subtle text-dark rounded-pill px-2 py-1 fw-bold"
+                          >
+                            #2
+                          </span>
+                        }
+                        @case (2) {
+                          <span
+                            class="badge bg-info-subtle text-info-emphasis rounded-pill px-2 py-1 fw-bold"
+                          >
+                            #3
+                          </span>
+                        }
+                        @default {
+                          <span
+                            class="badge bg-light text-secondary rounded-pill px-2 py-1 fw-semibold"
+                          >
+                            #{{ i + 1 }}
+                          </span>
+                        }
+                      }
+                    </td>
+                    <td>
+                      <div class="d-flex align-items-center gap-2">
+                        <div
+                          class="avatar-circle bg-info-subtle text-info-emphasis fw-bold small rounded-circle d-flex align-items-center justify-content-center"
+                          style="width: 34px; height: 34px"
+                        >
+                          {{ getInitials(item.userName) }}
+                        </div>
+                        <div>
+                          <div class="fw-semibold text-dark small text-truncate">
+                            {{ item.userName }}
+                          </div>
+                          <div class="text-muted" style="font-size: 0.75rem">
+                            {{ item.userEmail }}
+                          </div>
+                        </div>
+                      </div>
+                    </td>
+                    <td class="text-center">
+                      <span class="badge bg-primary rounded-pill px-3 py-1 fw-bold">
+                        {{ item.totalSharedResources }}
+                      </span>
+                    </td>
+                    <td>
+                      <div class="d-flex align-items-center gap-2 small">
+                        <span class="badge bg-warning-subtle text-warning-emphasis rounded-pill">
+                          {{ item.sharedFoldersCount }} carpetas
+                        </span>
+                        <span class="badge bg-primary-subtle text-primary-emphasis rounded-pill">
+                          {{ item.sharedFilesCount }} archivos
+                        </span>
+                      </div>
+                    </td>
+                    <td class="text-end pe-4">
+                      <span
+                        class="badge bg-success-subtle text-success-emphasis rounded-pill px-3 py-1 fw-semibold"
+                      >
+                        {{ item.collaboratorsCount }} usuarios
+                      </span>
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        }
+      </div>
+    </div>
+  }
+</div>

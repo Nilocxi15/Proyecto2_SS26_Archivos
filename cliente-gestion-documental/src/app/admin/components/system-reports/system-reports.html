@@ -1,1 +1,56 @@
-<p>system-reports works!</p>
+<div class="system-reports-container">
+  <!-- Encabezado de la Sección de Reportes -->
+  <header class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-3">
+    <div>
+      <div class="d-flex align-items-center gap-2 mb-1">
+        <i class="bi bi-bar-chart-line-fill text-primary fs-3"></i>
+        <h1 class="h3 fw-bold text-dark mb-0">Reportes del Sistema</h1>
+      </div>
+      <p class="text-muted small mb-0">
+        Panel administrativo de estadísticas, métricas y análisis de la plataforma.
+      </p>
+    </div>
+  </header>
+
+  <!-- Barra de Pestañas de Navegación por Categoría -->
+  <nav class="card border-0 shadow-sm rounded-3 mb-4 bg-white">
+    <div class="card-body p-2">
+      <ul class="nav nav-pills nav-fill gap-2" role="tablist">
+        @for (category of categories; track category.id) {
+          <li class="nav-item" role="presentation">
+            <button
+              type="button"
+              class="nav-link d-flex align-items-center justify-content-center gap-2 py-2 px-3 rounded-pill fw-medium"
+              [class.active]="activeCategory() === category.id"
+              [class.text-secondary]="activeCategory() !== category.id"
+              (click)="selectCategory(category.id)"
+              role="tab"
+              [attr.aria-selected]="activeCategory() === category.id"
+            >
+              <i class="bi fs-5" [class]="category.icon"></i>
+              <span>{{ category.label }}</span>
+            </button>
+          </li>
+        }
+      </ul>
+    </div>
+  </nav>
+
+  <!-- Contenedor del Componente de la Categoría Activa -->
+  <section class="card border-0 shadow-sm rounded-3 bg-white p-4">
+    @switch (activeCategory()) {
+      @case ('storage') {
+        <app-storage-reports></app-storage-reports>
+      }
+      @case ('users') {
+        <app-user-reports></app-user-reports>
+      }
+      @case ('sharing') {
+        <app-sharing-reports></app-sharing-reports>
+      }
+      @case ('activity') {
+        <app-activity-reports></app-activity-reports>
+      }
+    }
+  </section>
+</div>
