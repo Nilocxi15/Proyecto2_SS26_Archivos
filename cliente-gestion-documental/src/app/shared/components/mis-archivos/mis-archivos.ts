@@ -24,6 +24,16 @@ export class MisArchivos implements OnInit {
   readonly newFolderName = signal<string>('');
   readonly newFolderError = signal<string | null>(null);
 
+  // Estado del modal de crear archivo digital (.txt y .md)
+  readonly isCreateFileModalVisible = signal<boolean>(false);
+  readonly newFileName = signal<string>('');
+  readonly newFileExtension = signal<'txt' | 'md'>('txt');
+  readonly newFileContent = signal<string>('');
+  readonly newFileTags = signal<string>('');
+  readonly openInEditorOnCreate = signal<boolean>(true);
+  readonly createFileError = signal<string | null>(null);
+  readonly isCreatingFile = signal<boolean>(false);
+
   // Estado del modal de subida de archivo
   readonly isUploadFileModalVisible = signal<boolean>(false);
   readonly selectedUploadFile = signal<File | null>(null);
@@ -166,6 +176,85 @@ export class MisArchivos implements OnInit {
         this.newFolderError.set(msg);
       },
     });
+  }
+
+  // CREAR ARCHIVO DIGITAL (.TXT Y .MD)
+  openCreateFileModal(): void {
+    this.newFileName.set('');
+    this.newFileExtension.set('txt');
+    this.newFileContent.set('');
+    this.newFileTags.set('');
+    this.openInEditorOnCreate.set(true);
+    this.createFileError.set(null);
+    this.isCreatingFile.set(false);
+    this.isCreateFileModalVisible.set(true);
+  }
+
+  closeCreateFileModal(): void {
+    this.isCreateFileModalVisible.set(false);
+    this.newFileName.set('');
+    this.newFileContent.set('');
+    this.newFileTags.set('');
+    this.createFileError.set(null);
+    this.isCreatingFile.set(false);
+  }
+
+  confirmCreateFile(): void {
+    const rawName = this.newFileName().trim();
+    if (!rawName) {
+      this.createFileError.set('El nombre del documento no puede estar vacío');
+      return;
+    }
+
+    if (/[\/\\:*?"<>|]/.test(rawName)) {
+      this.createFileError.set('El nombre contiene caracteres inválidos: / \\ : * ? " < > |');
+      return;
+    }
+
+    const extension = this.newFileExtension();
+    let cleanBaseName = rawName.replace(new RegExp(`\\.${extension}$`, 'i'), '').trim();
+    if (!cleanBaseName) {
+      cleanBaseName = 'documento';
+    }
+    const finalFileName = `${cleanBaseName}.${extension}`;
+
+    const folderId = this.currentFolder()?._id || null;
+    const content = this.newFileContent();
+
+    const tags = this.newFileTags()
+      .split(',')
+      .map((t) => t.trim().replace(/^#/, ''))
+      .filter((t) => t.length > 0);
+
+    this.isCreatingFile.set(true);
+    this.createFileError.set(null);
+
+    this.resourceService
+      .uploadFile({
+        name: finalFileName,
+        extension,
+        content,
+        folderId,
+        tags,
+      })
+      .subscribe({
+        next: (res) => {
+          this.isCreatingFile.set(false);
+          const shouldOpen = this.openInEditorOnCreate();
+          this.closeCreateFileModal();
+          this.showNotification(`Archivo "${finalFileName}" creado exitosamente`);
+
+          const createdFile = res?.data;
+          if (shouldOpen && createdFile && createdFile._id) {
+            this.openFileWorkspace(createdFile);
+          }
+        },
+        error: (err) => {
+          this.isCreatingFile.set(false);
+          const msg = err?.error?.mensaje || 'Error al crear el archivo en el servidor';
+          this.createFileError.set(msg);
+        },
+      });
   }
 
   // SUBIR ARCHIVO (.TXT Y .MD EXCLUSIVAMENTE)
