@@ -59,7 +59,7 @@ const CreateFileDto = z.object({
     .string({ required_error: "El nombre del archivo es obligatorio" })
     .trim()
     .min(1, "El nombre del archivo es obligatorio")
-    .max(200, "El nombre del archivo no puede exceder 200 caracteres"),
+    .max(100, "El nombre del archivo no puede exceder 100 caracteres"),
   extension: z
     .string()
     .trim()
@@ -80,7 +80,22 @@ const CreateFileDto = z.object({
         !val || val === "null" || val === "root" || objectIdRegex.test(val),
       { message: "El identificador de la carpeta no es válido" },
     ),
-  tags: z.array(z.string().trim()).optional().default([]),
+  tags: z
+    .union([z.array(z.string().trim()), z.string().trim()])
+    .optional()
+    .default([])
+    .transform((val) => {
+      if (Array.isArray(val)) {
+        return val.map((t) => t.replace(/^#/, "")).filter(Boolean);
+      }
+      if (typeof val === "string") {
+        return val
+          .split(",")
+          .map((t) => t.trim().replace(/^#/, ""))
+          .filter(Boolean);
+      }
+      return [];
+    }),
 });
 
 /**
@@ -126,7 +141,9 @@ const CommentParamDto = z.object({
     .string({ required_error: "El identificador del archivo es obligatorio" })
     .regex(objectIdRegex, "El identificador del archivo no es válido"),
   commentId: z
-    .string({ required_error: "El identificador del comentario es obligatorio" })
+    .string({
+      required_error: "El identificador del comentario es obligatorio",
+    })
     .regex(objectIdRegex, "El identificador del comentario no es válido"),
 });
 

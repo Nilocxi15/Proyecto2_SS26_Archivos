@@ -68,7 +68,7 @@ const createFile = async (req, res, next) => {
 
     return res.status(201).json({
       status: "success",
-      mensaje: "Archivo subido exitosamente",
+      mensaje: "Archivo creado exitosamente",
       data: file,
     });
   } catch (error) {

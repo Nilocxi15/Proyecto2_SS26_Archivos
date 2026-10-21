@@ -1,5 +1,6 @@
 const Folder = require("../models/Folder");
 const File = require("../models/File");
+const User = require("../models/User");
 const mongoose = require("mongoose");
 
 /**
@@ -151,19 +152,30 @@ const createFile = async (
   userId,
   { name, extension, content = "", folderId = null, tags = [] },
 ) => {
-  const cleanName = name;
+  const userObjectId = new mongoose.Types.ObjectId(userId);
+
   let ext = extension
-    ? extension.replace(".", "")
-    : cleanName.endsWith(".md")
+    ? extension.replace(".", "").toLowerCase()
+    : name.toLowerCase().endsWith(".md")
       ? "md"
       : "txt";
+
+  if (ext !== "txt" && ext !== "md") {
+    ext = "txt";
+  }
+
+  let cleanName = name.trim();
+  const suffix = `.${ext}`;
+  if (!cleanName.toLowerCase().endsWith(suffix)) {
+    cleanName = `${cleanName}${suffix}`;
+  }
 
   let cleanFolderId = null;
   if (folderId && folderId !== "null" && folderId !== "root") {
     cleanFolderId = new mongoose.Types.ObjectId(folderId);
     const parentFolder = await Folder.findOne({
       _id: cleanFolderId,
-      ownerId: userId,
+      ownerId: userObjectId,
       isTrash: false,
     });
     if (!parentFolder) {
@@ -177,7 +189,7 @@ const createFile = async (
 
   // Comprobar duplicado en la misma ubicación
   const existingFile = await File.findOne({
-    ownerId: userId,
+    ownerId: userObjectId,
     folderId: cleanFolderId,
     name: cleanName,
     isTrash: false,
@@ -200,12 +212,36 @@ const createFile = async (
     sizeBytes,
     content: fileContent,
     folderId: cleanFolderId,
-    ownerId: userId,
+    ownerId: userObjectId,
     tags: Array.isArray(tags) ? tags : [],
     sharedWith: [],
+    comments: [],
   });
 
-  return newFile;
+  const owner = await User.findById(userObjectId)
+    .select("name lastName email")
+    .lean();
+
+  return {
+    _id: newFile._id,
+    name: newFile.name,
+    extension: newFile.extension,
+    sizeBytes: newFile.sizeBytes,
+    content: newFile.content,
+    folderId: newFile.folderId,
+    tags: newFile.tags || [],
+    sharedWith: [],
+    comments: [],
+    isTrash: false,
+    myPermission: "propietario",
+    ownerId: userObjectId,
+    ownerName: owner
+      ? `${owner.name || ""} ${owner.lastName || ""}`.trim()
+      : "Propietario",
+    ownerEmail: owner ? owner.email : "",
+    createdAt: newFile.createdAt,
+    updatedAt: newFile.updatedAt,
+  };
 };
 
 module.exports = {

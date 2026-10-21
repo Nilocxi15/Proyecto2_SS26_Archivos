@@ -50,7 +50,7 @@ const fileSchema = new mongoose.Schema(
     },
     content: {
       type: String,
-      required: [true, "El contenido del archivo es obligatorio"],
+      default: "",
     },
     folderId: {
       type: mongoose.Schema.Types.ObjectId,
