@@ -2,28 +2,12 @@ import { Injectable, inject, signal } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable, tap } from 'rxjs';
 import { environment } from '../../../environments/environment';
+import {
+  UserStorageReportItem,
+  UserSharedReportItem,
+} from '../../admin/components/system-reports/components/user-reports/user-reports.models';
 
-export interface UserStorageReportItem {
-  userId: string;
-  userName: string;
-  userEmail: string;
-  role?: string;
-  isActive?: boolean;
-  fileCount: number;
-  totalSizeBytes: number;
-  lastActivityAt?: string | null;
-}
-
-export interface UserSharedReportItem {
-  userId: string;
-  userName: string;
-  userEmail: string;
-  totalSharedResources: number;
-  sharedFilesCount: number;
-  sharedFoldersCount: number;
-  collaboratorsCount: number;
-  lastSharedAt?: string | null;
-}
+export type { UserStorageReportItem, UserSharedReportItem };
 
 interface ApiResponse<T> {
   status: string;

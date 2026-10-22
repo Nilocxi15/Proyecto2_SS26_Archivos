@@ -1,13 +1,8 @@
 import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import {
-  ReportService,
-  UserSharedReportItem,
-  UserStorageReportItem,
-} from '../../../../../core/services/report';
-
-export type UserReportView = 'storage-top10' | 'shared-ranking';
+import { ReportService } from '../../../../../core/services/report';
+import { UserReportView } from './user-reports.models';
 
 @Component({
   selector: 'app-user-reports',

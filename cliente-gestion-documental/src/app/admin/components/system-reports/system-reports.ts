@@ -4,15 +4,7 @@ import { StorageReports } from './components/storage-reports/storage-reports';
 import { UserReports } from './components/user-reports/user-reports';
 import { SharingReports } from './components/sharing-reports/sharing-reports';
 import { ActivityReports } from './components/activity-reports/activity-reports';
-
-export type ReportCategory = 'storage' | 'users' | 'sharing' | 'activity';
-
-export interface ReportCategoryTab {
-  id: ReportCategory;
-  label: string;
-  icon: string;
-  description: string;
-}
+import { ReportCategory, ReportCategoryTab } from './system-reports.models';
 
 @Component({
   selector: 'app-system-reports',
