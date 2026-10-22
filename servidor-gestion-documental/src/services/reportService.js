@@ -166,7 +166,72 @@ const getTopUsersBySharedResources = async () => {
   return await File.aggregate(pipeline);
 };
 
+/**
+ * Reporte: Cantidad de archivos agrupados por tipo.
+ * Agrupa los archivos activos por extensión normalizada, cuenta la cantidad de archivos,
+ * suma el espacio total en bytes consumido por cada tipo y calcula el porcentaje sobre el total global.
+ * @returns {Promise<Array<{extension: string, mimeType: string, fileCount: number, totalSizeBytes: number, percentage: number}>>}
+ */
+const getFilesGroupedByType = async () => {
+  const pipeline = [
+    { $match: { isTrash: false } },
+    {
+      $group: {
+        _id: { $toLower: "$extension" },
+        fileCount: { $sum: 1 },
+        totalSizeBytes: { $sum: "$sizeBytes" },
+      },
+    },
+    {
+      $setWindowFields: {
+        output: {
+          grandTotalBytes: { $sum: "$totalSizeBytes" },
+          grandTotalFiles: { $sum: "$fileCount" },
+        },
+      },
+    },
+    {
+      $project: {
+        _id: 0,
+        extension: { $concat: [".", "$_id"] },
+        mimeType: {
+          $switch: {
+            branches: [
+              { case: { $eq: ["$_id", "txt"] }, then: "text/plain" },
+              { case: { $eq: ["$_id", "md"] }, then: "text/markdown" },
+            ],
+            default: "text/plain",
+          },
+        },
+        fileCount: 1,
+        totalSizeBytes: 1,
+        percentage: {
+          $cond: [
+            { $gt: ["$grandTotalBytes", 0] },
+            {
+              $round: [
+                {
+                  $multiply: [
+                    { $divide: ["$totalSizeBytes", "$grandTotalBytes"] },
+                    100,
+                  ],
+                },
+                2,
+              ],
+            },
+            0,
+          ],
+        },
+      },
+    },
+    { $sort: { fileCount: -1, totalSizeBytes: -1 } },
+  ];
+
+  return await File.aggregate(pipeline);
+};
+
 module.exports = {
   getTopUsersByFiles,
   getTopUsersBySharedResources,
+  getFilesGroupedByType,
 };

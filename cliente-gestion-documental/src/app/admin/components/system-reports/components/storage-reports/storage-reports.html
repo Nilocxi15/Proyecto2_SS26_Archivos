@@ -34,23 +34,23 @@
     </div>
 
     <div class="d-flex align-items-center gap-3">
-      @if (lastUpdatedAt()) {
+      @if (currentLastUpdatedAt()) {
         <div class="text-muted small">
-          Última consulta: {{ formatDate(lastUpdatedAt()?.toISOString()) }}
+          Última consulta: {{ formatDate(currentLastUpdatedAt()?.toISOString()) }}
         </div>
       }
 
       <button
         type="button"
         class="btn btn-outline-primary btn-sm rounded-pill px-3 d-flex align-items-center gap-1"
-        [disabled]="isLoading()"
+        [disabled]="currentIsLoading()"
         (click)="refreshActiveReport()"
         title="Actualizar datos del reporte activo"
       >
         <i
           class="bi bi-arrow-clockwise"
-          [class.spinner-border]="isLoading()"
-          [class.spinner-border-sm]="isLoading()"
+          [class.spinner-border]="currentIsLoading()"
+          [class.spinner-border-sm]="currentIsLoading()"
         ></i>
         <span>Actualizar</span>
       </button>
@@ -73,10 +73,62 @@
             {{ filesByType().length }} tipos registrados
           </span>
         </div>
+
+        <!-- Tarjetas de Resumen KPI cuando hay datos -->
+        @if (filesByType().length > 0) {
+          <div class="row g-2 mt-2 pt-2 border-top">
+            <div class="col-12 col-sm-4">
+              <div class="d-flex align-items-center gap-2 p-2 bg-white rounded-2 border">
+                <div
+                  class="rounded-circle bg-primary-subtle text-primary d-flex align-items-center justify-content-center"
+                  style="width: 34px; height: 34px"
+                >
+                  <i class="bi bi-files fs-6"></i>
+                </div>
+                <div>
+                  <div class="text-muted" style="font-size: 0.75rem">Total de Archivos</div>
+                  <div class="fw-bold text-dark small mb-0">{{ totalFilesCount() }}</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="col-12 col-sm-4">
+              <div class="d-flex align-items-center gap-2 p-2 bg-white rounded-2 border">
+                <div
+                  class="rounded-circle bg-success-subtle text-success d-flex align-items-center justify-content-center"
+                  style="width: 34px; height: 34px"
+                >
+                  <i class="bi bi-hdd-fill fs-6"></i>
+                </div>
+                <div>
+                  <div class="text-muted" style="font-size: 0.75rem">Espacio Total Ocupado</div>
+                  <div class="fw-bold text-dark small mb-0">
+                    {{ formatBytes(grandTotalSizeBytes()) }}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="col-12 col-sm-4">
+              <div class="d-flex align-items-center gap-2 p-2 bg-white rounded-2 border">
+                <div
+                  class="rounded-circle bg-info-subtle text-info-emphasis d-flex align-items-center justify-content-center"
+                  style="width: 34px; height: 34px"
+                >
+                  <i class="bi bi-pie-chart-fill fs-6"></i>
+                </div>
+                <div>
+                  <div class="text-muted" style="font-size: 0.75rem">Tipos Detectados</div>
+                  <div class="fw-bold text-dark small mb-0">{{ filesByType().length }}</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        }
       </div>
 
       <div class="card-body p-0">
-        @if (isLoading()) {
+        @if (currentIsLoading()) {
           <div class="text-center py-5 text-muted">
             <div class="spinner-border spinner-border-sm text-primary mb-2" role="status"></div>
             <div class="small">Consultando reporte en tiempo real...</div>
@@ -157,6 +209,18 @@
                   </tr>
                 }
               </tbody>
+              <tfoot class="table-light border-top">
+                <tr class="fw-bold small text-dark">
+                  <td colspan="3" class="ps-4 py-3">Total General</td>
+                  <td class="text-center">
+                    <span class="badge bg-dark rounded-pill px-3 py-1">
+                      {{ totalFilesCount() }} archivos
+                    </span>
+                  </td>
+                  <td class="text-end">{{ formatBytes(grandTotalSizeBytes()) }}</td>
+                  <td class="pe-4 text-end text-primary">100%</td>
+                </tr>
+              </tfoot>
             </table>
           </div>
         }
@@ -228,7 +292,7 @@
       </div>
 
       <div class="card-body p-0">
-        @if (isLoading()) {
+        @if (currentIsLoading()) {
           <div class="text-center py-5 text-muted">
             <div class="spinner-border spinner-border-sm text-primary mb-2" role="status"></div>
             <div class="small">Consultando reporte en tiempo real...</div>
@@ -327,7 +391,7 @@
       </div>
 
       <div class="card-body p-0">
-        @if (isLoading()) {
+        @if (currentIsLoading()) {
           <div class="text-center py-5 text-muted">
             <div class="spinner-border spinner-border-sm text-primary mb-2" role="status"></div>
             <div class="small">Consultando reporte en tiempo real...</div>

@@ -13,4 +13,7 @@ router.get("/users/top-files", reportController.getTopUsersByFiles);
 // Reporte: Usuarios con mayor cantidad de recursos compartidos
 router.get("/users/top-shared", reportController.getTopUsersBySharedResources);
 
+// Reporte: Cantidad de archivos agrupados por tipo
+router.get("/storage/by-type", reportController.getFilesGroupedByType);
+
 module.exports = router;

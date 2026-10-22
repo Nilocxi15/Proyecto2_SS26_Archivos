@@ -1,6 +1,7 @@
-import { Component, signal } from '@angular/core';
+import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { ReportService } from '../../../../../core/services/report';
 import {
   StorageReportView,
   FileTypeReportItem,
@@ -14,29 +15,68 @@ import {
   templateUrl: './storage-reports.html',
   styleUrl: './storage-reports.css',
 })
-export class StorageReports {
+export class StorageReports implements OnInit {
+  private readonly reportService = inject(ReportService);
+
   // Pestaña activa dentro del apartado de reportes de archivos y almacenamiento
   readonly activeSubReport = signal<StorageReportView>('by-type');
 
-  // Estado de carga y última consulta
-  readonly isLoading = signal<boolean>(false);
-  readonly lastUpdatedAt = signal<Date | null>(null);
+  // Estado reactivo vinculado al servicio para archivos por tipo
+  readonly filesByType = this.reportService.filesByType;
+  readonly isLoadingFilesByType = this.reportService.isLoadingFilesByType;
+  readonly lastUpdatedFilesByTypeAt = this.reportService.lastUpdatedFilesByTypeAt;
 
   // Filtros para el reporte por rango de fechas
   readonly startDate = signal<string>('');
   readonly endDate = signal<string>('');
 
-  // Colecciones reactivas de los reportes (listas para ser vinculadas con el servicio)
-  readonly filesByType = signal<FileTypeReportItem[]>([]);
+  // Colecciones reactivas para futuros reportes
   readonly filesByDateRange = signal<DateRangeFileItem[]>([]);
   readonly filesByOperations = signal<FileOperationsItem[]>([]);
 
+  // Totales computados para KPIs del reporte por tipo
+  readonly totalFilesCount = computed(() =>
+    this.filesByType().reduce((acc, curr) => acc + curr.fileCount, 0),
+  );
+
+  readonly grandTotalSizeBytes = computed(() =>
+    this.filesByType().reduce((acc, curr) => acc + curr.totalSizeBytes, 0),
+  );
+
+  // Estados computados según la pestaña activa
+  readonly currentIsLoading = computed(() => {
+    if (this.activeSubReport() === 'by-type') {
+      return this.isLoadingFilesByType();
+    }
+    return false;
+  });
+
+  readonly currentLastUpdatedAt = computed(() => {
+    if (this.activeSubReport() === 'by-type') {
+      return this.lastUpdatedFilesByTypeAt();
+    }
+    return null;
+  });
+
+  ngOnInit(): void {
+    this.loadFilesByType();
+  }
+
+  loadFilesByType(): void {
+    this.reportService.getFilesGroupedByType().subscribe();
+  }
+
   switchSubReport(view: StorageReportView): void {
     this.activeSubReport.set(view);
+    if (view === 'by-type' && this.filesByType().length === 0) {
+      this.loadFilesByType();
+    }
   }
 
   refreshActiveReport(): void {
-    this.lastUpdatedAt.set(new Date());
+    if (this.activeSubReport() === 'by-type') {
+      this.loadFilesByType();
+    }
   }
 
   applyDateFilter(): void {
@@ -80,25 +120,12 @@ export class StorageReports {
   getFileIcon(extension?: string): string {
     const ext = (extension || '').toLowerCase().replace('.', '');
     switch (ext) {
-      case 'pdf':
-        return 'bi-file-earmark-pdf-fill text-danger';
       case 'txt':
         return 'bi-file-earmark-text-fill text-secondary';
       case 'md':
         return 'bi-filetype-md text-info';
-      case 'doc':
-      case 'docx':
-        return 'bi-file-earmark-word-fill text-primary';
-      case 'xls':
-      case 'xlsx':
-        return 'bi-file-earmark-excel-fill text-success';
-      case 'png':
-      case 'jpg':
-      case 'jpeg':
-      case 'svg':
-        return 'bi-file-earmark-image-fill text-warning';
       default:
-        return 'bi-file-earmark-fill text-secondary';
+        return 'bi-file-earmark-fill text-primary';
     }
   }
 }

@@ -6,8 +6,9 @@ import {
   UserStorageReportItem,
   UserSharedReportItem,
 } from '../../admin/components/system-reports/components/user-reports/user-reports.models';
+import { FileTypeReportItem } from '../../admin/components/system-reports/components/storage-reports/storage-reports.models';
 
-export type { UserStorageReportItem, UserSharedReportItem };
+export type { UserStorageReportItem, UserSharedReportItem, FileTypeReportItem };
 
 interface ApiResponse<T> {
   status: string;
@@ -31,6 +32,34 @@ export class ReportService {
   readonly sharedTopUsers = signal<UserSharedReportItem[]>([]);
   readonly isLoadingSharedTop = signal<boolean>(false);
   readonly lastUpdatedSharedAt = signal<Date | null>(null);
+
+  // Estado reactivo para archivos agrupados por tipo
+  readonly filesByType = signal<FileTypeReportItem[]>([]);
+  readonly isLoadingFilesByType = signal<boolean>(false);
+  readonly lastUpdatedFilesByTypeAt = signal<Date | null>(null);
+
+  /**
+   * Obtiene la cantidad de archivos agrupados por tipo y volumen de almacenamiento
+   */
+  getFilesGroupedByType(): Observable<ApiResponse<FileTypeReportItem[]>> {
+    this.isLoadingFilesByType.set(true);
+    return this.http
+      .get<ApiResponse<FileTypeReportItem[]>>(`${this.apiUrl}/storage/by-type`)
+      .pipe(
+        tap({
+          next: (res) => {
+            if (res.status === 'success' && res.data) {
+              this.filesByType.set(res.data);
+              this.lastUpdatedFilesByTypeAt.set(new Date());
+            }
+            this.isLoadingFilesByType.set(false);
+          },
+          error: () => {
+            this.isLoadingFilesByType.set(false);
+          },
+        }),
+      );
+  }
 
   /**
    * Obtiene los 10 usuarios con mayor cantidad de archivos almacenados desde el backend

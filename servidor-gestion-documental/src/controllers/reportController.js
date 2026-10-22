@@ -34,7 +34,25 @@ const getTopUsersBySharedResources = async (req, res, next) => {
   }
 };
 
+/**
+ * GET /api/reports/storage/by-type
+ * Retorna la cantidad de archivos y volumen de almacenamiento agrupados por tipo
+ */
+const getFilesGroupedByType = async (req, res, next) => {
+  try {
+    const data = await reportService.getFilesGroupedByType();
+
+    return res.status(200).json({
+      status: "success",
+      data,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   getTopUsersByFiles,
   getTopUsersBySharedResources,
+  getFilesGroupedByType,
 };
