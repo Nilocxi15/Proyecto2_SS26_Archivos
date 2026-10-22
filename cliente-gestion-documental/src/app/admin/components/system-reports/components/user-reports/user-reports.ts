@@ -1,16 +1,6 @@
-import { Component, signal } from '@angular/core';
+import { Component, OnInit, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
-
-export interface UserStorageReportItem {
-  userId: string;
-  userName: string;
-  userEmail: string;
-  role?: string;
-  isActive?: boolean;
-  fileCount: number;
-  totalSizeBytes: number;
-  lastActivityAt?: string | null;
-}
+import { ReportService, UserStorageReportItem } from '../../../../../core/services/report';
 
 export interface UserSharedReportItem {
   userId: string;
@@ -31,18 +21,33 @@ export type UserReportView = 'storage-top10' | 'shared-ranking';
   templateUrl: './user-reports.html',
   styleUrl: './user-reports.css',
 })
-export class UserReports {
+export class UserReports implements OnInit {
+  private readonly reportService = inject(ReportService);
+
   // Pestaña activa dentro del subreporte de usuarios
   readonly activeSubReport = signal<UserReportView>('storage-top10');
 
-  // Datos de reportes (inicializados vacíos según requerimiento)
-  readonly storageTopUsers = signal<UserStorageReportItem[]>([]);
+  // Datos reactivos vinculados al servicio de reportes
+  readonly storageTopUsers = this.reportService.storageTopUsers;
+  readonly isLoading = this.reportService.isLoadingStorageTop;
+  readonly lastUpdatedAt = this.reportService.lastUpdatedAt;
+
+  // Reporte de compartición (pendiente de backend)
   readonly sharedTopUsers = signal<UserSharedReportItem[]>([]);
-  readonly isLoading = signal<boolean>(false);
-  readonly lastUpdatedAt = signal<Date | null>(null);
+
+  ngOnInit(): void {
+    this.loadTopStorageUsers();
+  }
 
   switchSubReport(view: UserReportView): void {
     this.activeSubReport.set(view);
+    if (view === 'storage-top10' && this.storageTopUsers().length === 0) {
+      this.loadTopStorageUsers();
+    }
+  }
+
+  loadTopStorageUsers(): void {
+    this.reportService.getTopUsersByFiles().subscribe();
   }
 
   formatBytes(bytes?: number): string {
