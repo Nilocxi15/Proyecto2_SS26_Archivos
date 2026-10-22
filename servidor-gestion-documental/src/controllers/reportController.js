@@ -51,8 +51,27 @@ const getFilesGroupedByType = async (req, res, next) => {
   }
 };
 
+/**
+ * GET /api/reports/storage/by-date-range
+ * Retorna los archivos almacenados dentro de un intervalo temporal delimitado
+ */
+const getFilesByDateRange = async (req, res, next) => {
+  try {
+    const { startDate, endDate } = req.query;
+    const data = await reportService.getFilesByDateRange(startDate, endDate);
+
+    return res.status(200).json({
+      status: "success",
+      data,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   getTopUsersByFiles,
   getTopUsersBySharedResources,
   getFilesGroupedByType,
+  getFilesByDateRange,
 };

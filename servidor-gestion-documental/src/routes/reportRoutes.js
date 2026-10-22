@@ -16,4 +16,7 @@ router.get("/users/top-shared", reportController.getTopUsersBySharedResources);
 // Reporte: Cantidad de archivos agrupados por tipo
 router.get("/storage/by-type", reportController.getFilesGroupedByType);
 
+// Reporte: Archivos almacenados dentro de un rango de fechas
+router.get("/storage/by-date-range", reportController.getFilesByDateRange);
+
 module.exports = router;

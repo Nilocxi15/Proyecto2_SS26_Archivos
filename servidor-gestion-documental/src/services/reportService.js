@@ -230,8 +230,102 @@ const getFilesGroupedByType = async () => {
   return await File.aggregate(pipeline);
 };
 
+/**
+ * Reporte: Archivos almacenados dentro de un rango de fechas.
+ * Filtra los archivos activos cuyo createdAt se encuentre en el rango delimitado por startDate y endDate,
+ * une los datos del propietario (User) y la carpeta contenedora (Folder) para resolver la ruta breadcrumb.
+ * @param {string} [startDate] - Fecha inicial en formato YYYY-MM-DD
+ * @param {string} [endDate] - Fecha final en formato YYYY-MM-DD
+ * @returns {Promise<Array<{fileId: string, fileName: string, extension: string, sizeBytes: number, createdAt: Date, updatedAt: Date, ownerName: string, ownerEmail: string, folderPath: string}>>}
+ */
+const getFilesByDateRange = async (startDate, endDate) => {
+  const matchCriteria = { isTrash: false };
+
+  if (startDate || endDate) {
+    const dateQuery = {};
+    if (startDate) {
+      const parsedStart = new Date(startDate);
+      if (!isNaN(parsedStart.getTime())) {
+        parsedStart.setUTCHours(0, 0, 0, 0);
+        dateQuery.$gte = parsedStart;
+      }
+    }
+    if (endDate) {
+      const parsedEnd = new Date(endDate);
+      if (!isNaN(parsedEnd.getTime())) {
+        parsedEnd.setUTCHours(23, 59, 59, 999);
+        dateQuery.$lte = parsedEnd;
+      }
+    }
+    if (Object.keys(dateQuery).length > 0) {
+      matchCriteria.createdAt = dateQuery;
+    }
+  }
+
+  const pipeline = [
+    { $match: matchCriteria },
+    {
+      $lookup: {
+        from: "users",
+        localField: "ownerId",
+        foreignField: "_id",
+        as: "ownerInfo",
+      },
+    },
+    { $unwind: "$ownerInfo" },
+    {
+      $lookup: {
+        from: "folders",
+        localField: "folderId",
+        foreignField: "_id",
+        as: "folderInfo",
+      },
+    },
+    {
+      $unwind: {
+        path: "$folderInfo",
+        preserveNullAndEmptyArrays: true,
+      },
+    },
+    {
+      $project: {
+        _id: 0,
+        fileId: "$_id",
+        fileName: "$name",
+        extension: "$extension",
+        sizeBytes: "$sizeBytes",
+        createdAt: 1,
+        updatedAt: 1,
+        ownerName: {
+          $trim: {
+            input: {
+              $concat: [
+                { $ifNull: ["$ownerInfo.name", ""] },
+                " ",
+                { $ifNull: ["$ownerInfo.lastName", ""] },
+              ],
+            },
+          },
+        },
+        ownerEmail: "$ownerInfo.email",
+        folderPath: {
+          $cond: [
+            { $ifNull: ["$folderInfo.path", false] },
+            "$folderInfo.path",
+            "/",
+          ],
+        },
+      },
+    },
+    { $sort: { createdAt: -1, fileName: 1 } },
+  ];
+
+  return await File.aggregate(pipeline);
+};
+
 module.exports = {
   getTopUsersByFiles,
   getTopUsersBySharedResources,
   getFilesGroupedByType,
+  getFilesByDateRange,
 };

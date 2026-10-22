@@ -289,6 +289,103 @@
             }
           </div>
         </div>
+
+        <!-- Tarjetas de Resumen KPI cuando hay datos en el rango -->
+        @if (filesByDateRange().length > 0) {
+          <div class="row g-2 mt-2 pt-2 border-top">
+            <div class="col-12 col-sm-4">
+              <div class="d-flex align-items-center gap-2 p-2 bg-white rounded-2 border">
+                <div
+                  class="rounded-circle bg-info-subtle text-info-emphasis d-flex align-items-center justify-content-center"
+                  style="width: 34px; height: 34px"
+                >
+                  <i class="bi bi-file-earmark-check fs-6"></i>
+                </div>
+                <div>
+                  <div class="text-muted" style="font-size: 0.75rem">Archivos en el Periodo</div>
+                  <div class="fw-bold text-dark small mb-0">{{ filesByDateRange().length }}</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="col-12 col-sm-4">
+              <div class="d-flex align-items-center gap-2 p-2 bg-white rounded-2 border">
+                <div
+                  class="rounded-circle bg-success-subtle text-success d-flex align-items-center justify-content-center"
+                  style="width: 34px; height: 34px"
+                >
+                  <i class="bi bi-hdd-fill fs-6"></i>
+                </div>
+                <div>
+                  <div class="text-muted" style="font-size: 0.75rem">Espacio Total en Periodo</div>
+                  <div class="fw-bold text-dark small mb-0">
+                    {{ formatBytes(totalDateRangeSizeBytes()) }}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="col-12 col-sm-4">
+              <div class="d-flex align-items-center gap-2 p-2 bg-white rounded-2 border">
+                <div
+                  class="rounded-circle bg-primary-subtle text-primary d-flex align-items-center justify-content-center"
+                  style="width: 34px; height: 34px"
+                >
+                  <i class="bi bi-calendar3 fs-6"></i>
+                </div>
+                <div>
+                  <div class="text-muted" style="font-size: 0.75rem">Filtro Aplicado</div>
+                  <div class="fw-bold text-dark small mb-0 text-truncate">
+                    {{ startDate() || 'Inicio' }} &mdash; {{ endDate() || 'Actualidad' }}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Barra de Búsqueda y Selector de Registros por Página -->
+          <div class="row g-2 align-items-center mt-2 pt-2 border-top">
+            <div class="col-12 col-sm-6 col-md-5">
+              <div class="input-group input-group-sm">
+                <span class="input-group-text bg-white border-end-0 text-muted">
+                  <i class="bi bi-search"></i>
+                </span>
+                <input
+                  type="text"
+                  class="form-control border-start-0"
+                  placeholder="Buscar por archivo, propietario o ruta..."
+                  [ngModel]="dateRangeSearchTerm()"
+                  (ngModelChange)="onDateRangeSearch($event)"
+                />
+                @if (dateRangeSearchTerm()) {
+                  <button
+                    type="button"
+                    class="btn btn-outline-secondary border-start-0"
+                    (click)="onDateRangeSearch('')"
+                    title="Limpiar búsqueda"
+                  >
+                    <i class="bi bi-x"></i>
+                  </button>
+                }
+              </div>
+            </div>
+
+            <div
+              class="col-12 col-sm-6 col-md-7 d-flex justify-content-sm-end align-items-center gap-2"
+            >
+              <label class="small text-muted mb-0">Mostrar:</label>
+              <select
+                class="form-select form-select-sm w-auto"
+                [ngModel]="dateRangePageSize()"
+                (ngModelChange)="setDateRangePageSize($event)"
+              >
+                <option [value]="5">5 por pág.</option>
+                <option [value]="10">10 por pág.</option>
+                <option [value]="25">25 por pág.</option>
+              </select>
+            </div>
+          </div>
+        }
       </div>
 
       <div class="card-body p-0">
@@ -312,8 +409,17 @@
               archivos almacenados o modificados en ese intervalo.
             </p>
           </div>
+        } @else if (filteredDateRangeFiles().length === 0) {
+          <!-- Estado Vacío por filtro de búsqueda -->
+          <div class="text-center py-5 px-3">
+            <i class="bi bi-search fs-2 text-muted d-block mb-2 opacity-50"></i>
+            <h3 class="h6 fw-semibold text-dark mb-1">Sin coincidencias</h3>
+            <p class="text-muted small mb-0">
+              No se encontraron archivos que coincidan con "{{ dateRangeSearchTerm() }}".
+            </p>
+          </div>
         } @else {
-          <!-- Tabla de Resultados -->
+          <!-- Tabla Paginada de Resultados -->
           <div class="table-responsive">
             <table class="table table-hover align-middle mb-0">
               <thead class="table-light text-secondary small text-uppercase">
@@ -326,7 +432,7 @@
                 </tr>
               </thead>
               <tbody>
-                @for (file of filesByDateRange(); track file.fileId) {
+                @for (file of paginatedDateRangeFiles(); track file.fileId) {
                   <tr>
                     <td class="ps-4">
                       <div class="d-flex align-items-center gap-2">
@@ -363,7 +469,72 @@
                   </tr>
                 }
               </tbody>
+              <tfoot class="table-light border-top">
+                <tr class="fw-bold small text-dark">
+                  <td colspan="3" class="ps-4 py-3">Total en Periodo Consultado</td>
+                  <td>{{ formatBytes(totalDateRangeSizeBytes()) }}</td>
+                  <td class="pe-4 text-end text-primary">
+                    {{ filesByDateRange().length }} archivos
+                  </td>
+                </tr>
+              </tfoot>
             </table>
+          </div>
+
+          <!-- Pie de Tabla: Resumen y Controles de Paginación -->
+          <div
+            class="card-footer bg-white border-top py-3 px-4 d-flex flex-wrap align-items-center justify-content-between gap-3"
+          >
+            <div class="small text-muted">
+              Mostrando <strong>{{ dateRangeStartIndex() }}</strong> a
+              <strong>{{ dateRangeEndIndex() }}</strong> de
+              <strong>{{ filteredDateRangeFiles().length }}</strong> archivos
+              @if (dateRangeSearchTerm()) {
+                <span>(filtrados de {{ filesByDateRange().length }} en total)</span>
+              }
+            </div>
+
+            @if (totalDateRangePages() > 1) {
+              <nav aria-label="Navegación de páginas del reporte de fechas">
+                <ul class="pagination pagination-sm mb-0">
+                  <!-- Botón Anterior -->
+                  <li class="page-item" [class.disabled]="dateRangeCurrentPage() === 1">
+                    <button
+                      type="button"
+                      class="page-link"
+                      (click)="goToDateRangePage(dateRangeCurrentPage() - 1)"
+                      aria-label="Página anterior"
+                    >
+                      <i class="bi bi-chevron-left"></i>
+                    </button>
+                  </li>
+
+                  <!-- Números de Página -->
+                  @for (p of visibleDateRangePagesArray(); track p) {
+                    <li class="page-item" [class.active]="p === dateRangeCurrentPage()">
+                      <button type="button" class="page-link" (click)="goToDateRangePage(p)">
+                        {{ p }}
+                      </button>
+                    </li>
+                  }
+
+                  <!-- Botón Siguiente -->
+                  <li
+                    class="page-item"
+                    [class.disabled]="dateRangeCurrentPage() === totalDateRangePages()"
+                  >
+                    <button
+                      type="button"
+                      class="page-link"
+                      (click)="goToDateRangePage(dateRangeCurrentPage() + 1)"
+                      aria-label="Página siguiente"
+                    >
+                      <i class="bi bi-chevron-right"></i>
+                    </button>
+                  </li>
+                </ul>
+              </nav>
+            }
           </div>
         }
       </div>

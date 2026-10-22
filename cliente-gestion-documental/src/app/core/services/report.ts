@@ -1,14 +1,22 @@
 import { Injectable, inject, signal } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable, tap } from 'rxjs';
 import { environment } from '../../../environments/environment';
 import {
   UserStorageReportItem,
   UserSharedReportItem,
 } from '../../admin/components/system-reports/components/user-reports/user-reports.models';
-import { FileTypeReportItem } from '../../admin/components/system-reports/components/storage-reports/storage-reports.models';
+import {
+  FileTypeReportItem,
+  DateRangeFileItem,
+} from '../../admin/components/system-reports/components/storage-reports/storage-reports.models';
 
-export type { UserStorageReportItem, UserSharedReportItem, FileTypeReportItem };
+export type {
+  UserStorageReportItem,
+  UserSharedReportItem,
+  FileTypeReportItem,
+  DateRangeFileItem,
+};
 
 interface ApiResponse<T> {
   status: string;
@@ -37,6 +45,41 @@ export class ReportService {
   readonly filesByType = signal<FileTypeReportItem[]>([]);
   readonly isLoadingFilesByType = signal<boolean>(false);
   readonly lastUpdatedFilesByTypeAt = signal<Date | null>(null);
+
+  // Estado reactivo para archivos almacenados dentro de un rango de fechas
+  readonly filesByDateRange = signal<DateRangeFileItem[]>([]);
+  readonly isLoadingDateRange = signal<boolean>(false);
+  readonly lastUpdatedDateRangeAt = signal<Date | null>(null);
+
+  /**
+   * Obtiene los archivos almacenados dentro de un rango de fechas
+   */
+  getFilesByDateRange(
+    startDate?: string,
+    endDate?: string,
+  ): Observable<ApiResponse<DateRangeFileItem[]>> {
+    this.isLoadingDateRange.set(true);
+    let params = new HttpParams();
+    if (startDate) params = params.set('startDate', startDate);
+    if (endDate) params = params.set('endDate', endDate);
+
+    return this.http
+      .get<ApiResponse<DateRangeFileItem[]>>(`${this.apiUrl}/storage/by-date-range`, { params })
+      .pipe(
+        tap({
+          next: (res) => {
+            if (res.status === 'success' && res.data) {
+              this.filesByDateRange.set(res.data);
+              this.lastUpdatedDateRangeAt.set(new Date());
+            }
+            this.isLoadingDateRange.set(false);
+          },
+          error: () => {
+            this.isLoadingDateRange.set(false);
+          },
+        }),
+      );
+  }
 
   /**
    * Obtiene la cantidad de archivos agrupados por tipo y volumen de almacenamiento
