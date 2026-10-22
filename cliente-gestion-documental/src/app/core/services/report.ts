@@ -14,6 +14,17 @@ export interface UserStorageReportItem {
   lastActivityAt?: string | null;
 }
 
+export interface UserSharedReportItem {
+  userId: string;
+  userName: string;
+  userEmail: string;
+  totalSharedResources: number;
+  sharedFilesCount: number;
+  sharedFoldersCount: number;
+  collaboratorsCount: number;
+  lastSharedAt?: string | null;
+}
+
 interface ApiResponse<T> {
   status: string;
   data: T;
@@ -31,6 +42,11 @@ export class ReportService {
   readonly storageTopUsers = signal<UserStorageReportItem[]>([]);
   readonly isLoadingStorageTop = signal<boolean>(false);
   readonly lastUpdatedAt = signal<Date | null>(null);
+
+  // Estado reactivo para el ranking de usuarios con más recursos compartidos
+  readonly sharedTopUsers = signal<UserSharedReportItem[]>([]);
+  readonly isLoadingSharedTop = signal<boolean>(false);
+  readonly lastUpdatedSharedAt = signal<Date | null>(null);
 
   /**
    * Obtiene los 10 usuarios con mayor cantidad de archivos almacenados desde el backend
@@ -50,6 +66,29 @@ export class ReportService {
           },
           error: () => {
             this.isLoadingStorageTop.set(false);
+          },
+        }),
+      );
+  }
+
+  /**
+   * Obtiene los usuarios con mayor cantidad de recursos compartidos desde el backend
+   */
+  getTopUsersBySharedResources(): Observable<ApiResponse<UserSharedReportItem[]>> {
+    this.isLoadingSharedTop.set(true);
+    return this.http
+      .get<ApiResponse<UserSharedReportItem[]>>(`${this.apiUrl}/users/top-shared`)
+      .pipe(
+        tap({
+          next: (res) => {
+            if (res.status === 'success' && res.data) {
+              this.sharedTopUsers.set(res.data);
+              this.lastUpdatedSharedAt.set(new Date());
+            }
+            this.isLoadingSharedTop.set(false);
+          },
+          error: () => {
+            this.isLoadingSharedTop.set(false);
           },
         }),
       );

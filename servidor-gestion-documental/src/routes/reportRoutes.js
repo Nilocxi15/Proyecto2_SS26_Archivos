@@ -10,4 +10,7 @@ router.use(allowRoles("admin"));
 // Reporte: Top 10 usuarios con mayor cantidad de archivos almacenados
 router.get("/users/top-files", reportController.getTopUsersByFiles);
 
+// Reporte: Usuarios con mayor cantidad de recursos compartidos
+router.get("/users/top-shared", reportController.getTopUsersBySharedResources);
+
 module.exports = router;

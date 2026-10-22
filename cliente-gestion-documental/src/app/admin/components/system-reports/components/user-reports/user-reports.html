@@ -8,7 +8,7 @@
         [class.btn-primary]="activeSubReport() === 'storage-top10'"
         [class.btn-outline-secondary]="activeSubReport() !== 'storage-top10'"
         (click)="switchSubReport('storage-top10')"
-      >        
+      >
         Top 10 usuarios con mayor cantidad de archivos
       </button>
 
@@ -18,34 +18,32 @@
         [class.btn-primary]="activeSubReport() === 'shared-ranking'"
         [class.btn-outline-secondary]="activeSubReport() !== 'shared-ranking'"
         (click)="switchSubReport('shared-ranking')"
-      >        
+      >
         Usuarios con mayor cantidad de recursos compartidos
       </button>
     </div>
 
     <div class="d-flex align-items-center gap-3">
-      @if (lastUpdatedAt()) {
-        <div class="text-muted small">          
-          Última consulta: {{ formatDate(lastUpdatedAt()?.toISOString()) }}
+      @if (currentLastUpdatedAt()) {
+        <div class="text-muted small">
+          Última consulta: {{ formatDate(currentLastUpdatedAt()?.toISOString()) }}
         </div>
       }
 
-      @if (activeSubReport() === 'storage-top10') {
-        <button
-          type="button"
-          class="btn btn-outline-primary btn-sm rounded-pill px-3 d-flex align-items-center gap-1"
-          [disabled]="isLoading()"
-          (click)="loadTopStorageUsers()"
-          title="Actualizar datos del reporte"
-        >
-          <i
-            class="bi bi-arrow-clockwise"
-            [class.spinner-border]="isLoading()"
-            [class.spinner-border-sm]="isLoading()"
-          ></i>
-          <span>Actualizar</span>
-        </button>
-      }
+      <button
+        type="button"
+        class="btn btn-outline-primary btn-sm rounded-pill px-3 d-flex align-items-center gap-1"
+        [disabled]="currentIsLoading()"
+        (click)="refreshActiveReport()"
+        title="Actualizar datos del reporte activo"
+      >
+        <i
+          class="bi bi-arrow-clockwise"
+          [class.spinner-border]="currentIsLoading()"
+          [class.spinner-border-sm]="currentIsLoading()"
+        ></i>
+        <span>Actualizar</span>
+      </button>
     </div>
   </div>
 
@@ -59,17 +57,18 @@
               Top 10 usuarios con mayor cantidad de archivos almacenados
             </h2>
             <p class="text-muted small mb-0">
-              Ranking de usuarios con mayor volumen documental y uso del almacenamiento en el sistema.
+              Ranking de usuarios con mayor volumen documental y uso del almacenamiento en el
+              sistema.
             </p>
           </div>
-          <span class="badge bg-primary-subtle text-primary-emphasis rounded-pill px-3 py-2 small">            
+          <span class="badge bg-primary-subtle text-primary-emphasis rounded-pill px-3 py-2 small">
             {{ storageTopUsers().length }} registros
           </span>
         </div>
       </div>
 
       <div class="card-body p-0">
-        @if (isLoading()) {
+        @if (isLoadingStorage()) {
           <div class="text-center py-5 text-muted">
             <div class="spinner-border spinner-border-sm text-primary mb-2" role="status"></div>
             <div class="small">Consultando reporte en tiempo real...</div>
@@ -79,12 +78,12 @@
           <div class="text-center py-5 px-3">
             <div
               class="empty-icon-circle bg-light text-muted mx-auto mb-3 d-flex align-items-center justify-content-center rounded-circle"
-              style="width: 64px; height: 64px;"
+              style="width: 64px; height: 64px"
             >
               <i class="bi bi-folder-x fs-2"></i>
             </div>
             <h3 class="h6 fw-semibold text-dark mb-1">No hay registros de archivos almacenados</h3>
-            <p class="text-muted small mx-auto mb-0" style="max-width: 460px;">
+            <p class="text-muted small mx-auto mb-0" style="max-width: 460px">
               Actualmente no se registran archivos cargados por usuarios en la plataforma. Cuando se
               creen o suban documentos, aquí se visualizarán los 10 usuarios con mayor cantidad de
               archivos.
@@ -96,7 +95,7 @@
             <table class="table table-hover align-middle mb-0">
               <thead class="table-light text-secondary small text-uppercase">
                 <tr>
-                  <th scope="col" class="ps-4 py-3" style="width: 70px;">Posición</th>
+                  <th scope="col" class="ps-4 py-3" style="width: 70px">Posición</th>
                   <th scope="col">Usuario</th>
                   <th scope="col">Rol</th>
                   <th scope="col">Estado</th>
@@ -115,17 +114,23 @@
                           </span>
                         }
                         @case (1) {
-                          <span class="badge bg-secondary-subtle text-dark rounded-pill px-2 py-1 fw-bold">
+                          <span
+                            class="badge bg-secondary-subtle text-dark rounded-pill px-2 py-1 fw-bold"
+                          >
                             #2
                           </span>
                         }
                         @case (2) {
-                          <span class="badge bg-info-subtle text-info-emphasis rounded-pill px-2 py-1 fw-bold">
+                          <span
+                            class="badge bg-info-subtle text-info-emphasis rounded-pill px-2 py-1 fw-bold"
+                          >
                             #3
                           </span>
                         }
                         @default {
-                          <span class="badge bg-light text-secondary rounded-pill px-2 py-1 fw-semibold">
+                          <span
+                            class="badge bg-light text-secondary rounded-pill px-2 py-1 fw-semibold"
+                          >
                             #{{ i + 1 }}
                           </span>
                         }
@@ -135,7 +140,7 @@
                       <div class="d-flex align-items-center gap-2">
                         <div
                           class="avatar-circle bg-primary-subtle text-primary-emphasis fw-bold small rounded-circle d-flex align-items-center justify-content-center"
-                          style="width: 34px; height: 34px;"
+                          style="width: 34px; height: 34px"
                         >
                           {{ getInitials(item.userName) }}
                         </div>
@@ -172,7 +177,9 @@
                       }
                     </td>
                     <td class="text-center">
-                      <span class="badge bg-primary-subtle text-primary-emphasis rounded-pill px-3 py-1 fw-bold">                        
+                      <span
+                        class="badge bg-primary-subtle text-primary-emphasis rounded-pill px-3 py-1 fw-bold"
+                      >
                         {{ item.fileCount }}
                       </span>
                     </td>
@@ -193,44 +200,105 @@
   @if (activeSubReport() === 'shared-ranking') {
     <div class="card border rounded-3 overflow-hidden shadow-sm bg-white">
       <div class="card-header bg-light border-bottom py-3 px-4">
-        <div class="d-flex align-items-center justify-content-between">
+        <div class="d-flex flex-wrap align-items-center justify-content-between gap-3">
           <div>
             <h2 class="h6 fw-bold text-dark mb-1">
               Usuarios con mayor cantidad de recursos compartidos
             </h2>
             <p class="text-muted small mb-0">
-              Ranking de usuarios que han compartido carpetas y archivos con colaboradores del sistema.
+              Ranking de usuarios que han compartido carpetas y archivos con colaboradores del
+              sistema.
             </p>
           </div>
-          <span class="badge bg-info-subtle text-info-emphasis rounded-pill px-3 py-2 small">            
-            {{ sharedTopUsers().length }} registros
+          <span class="badge bg-info-subtle text-info-emphasis rounded-pill px-3 py-2 small">
+            {{ sharedTopUsers().length }} usuarios en total
           </span>
         </div>
+
+        <!-- Barra de herramientas: Filtro rápido y selector de registros por página -->
+        @if (sharedTopUsers().length > 0) {
+          <div class="row g-2 align-items-center mt-2 pt-2 border-top">
+            <div class="col-12 col-sm-6 col-md-5">
+              <div class="input-group input-group-sm">
+                <span class="input-group-text bg-white border-end-0 text-muted">
+                  <i class="bi bi-search"></i>
+                </span>
+                <input
+                  type="text"
+                  class="form-control border-start-0"
+                  placeholder="Filtrar por nombre o correo..."
+                  [ngModel]="sharedSearchTerm()"
+                  (ngModelChange)="onSharedSearch($event)"
+                />
+                @if (sharedSearchTerm()) {
+                  <button
+                    type="button"
+                    class="btn btn-outline-secondary border-start-0"
+                    (click)="onSharedSearch('')"
+                    title="Limpiar búsqueda"
+                  >
+                    <i class="bi bi-x"></i>
+                  </button>
+                }
+              </div>
+            </div>
+
+            <div
+              class="col-12 col-sm-6 col-md-7 d-flex justify-content-sm-end align-items-center gap-2"
+            >
+              <label class="small text-muted mb-0">Mostrar:</label>
+              <select
+                class="form-select form-select-sm w-auto"
+                [ngModel]="sharedPageSize()"
+                (ngModelChange)="setSharedPageSize($event)"
+              >
+                <option [value]="5">5 por pág.</option>
+                <option [value]="10">10 por pág.</option>
+                <option [value]="25">25 por pág.</option>
+              </select>
+            </div>
+          </div>
+        }
       </div>
 
       <div class="card-body p-0">
-        @if (sharedTopUsers().length === 0) {
-          <!-- Estado Vacío sin registros -->
+        @if (isLoadingShared()) {
+          <div class="text-center py-5 text-muted">
+            <div class="spinner-border spinner-border-sm text-primary mb-2" role="status"></div>
+            <div class="small">Consultando reporte en tiempo real...</div>
+          </div>
+        } @else if (sharedTopUsers().length === 0) {
+          <!-- Estado Vacío sin registros globales -->
           <div class="text-center py-5 px-3">
             <div
               class="empty-icon-circle bg-light text-muted mx-auto mb-3 d-flex align-items-center justify-content-center rounded-circle"
-              style="width: 64px; height: 64px;"
+              style="width: 64px; height: 64px"
             >
               <i class="bi bi-diagram-3 fs-2"></i>
             </div>
             <h3 class="h6 fw-semibold text-dark mb-1">No hay recursos compartidos registrados</h3>
-            <p class="text-muted small mx-auto mb-0" style="max-width: 460px;">
-              Actualmente no se registran carpetas ni archivos compartidos entre usuarios. Cuando los
-              usuarios otorguen permisos de colaboración, el listado se actualizará automáticamente.
+            <p class="text-muted small mx-auto mb-0" style="max-width: 460px">
+              Actualmente no se registran carpetas ni archivos compartidos entre usuarios. Cuando
+              los usuarios otorguen permisos de colaboración, el listado se actualizará
+              automáticamente.
+            </p>
+          </div>
+        } @else if (filteredSharedUsers().length === 0) {
+          <!-- Estado Vacío por búsqueda -->
+          <div class="text-center py-5 px-3">
+            <i class="bi bi-search fs-2 text-muted d-block mb-2 opacity-50"></i>
+            <h3 class="h6 fw-semibold text-dark mb-1">Sin coincidencias</h3>
+            <p class="text-muted small mb-0">
+              No se encontraron usuarios que coincidan con "{{ sharedSearchTerm() }}".
             </p>
           </div>
         } @else {
-          <!-- Tabla de Resultados -->
+          <!-- Tabla Paginada de Resultados -->
           <div class="table-responsive">
             <table class="table table-hover align-middle mb-0">
               <thead class="table-light text-secondary small text-uppercase">
                 <tr>
-                  <th scope="col" class="ps-4 py-3" style="width: 70px;">Posición</th>
+                  <th scope="col" class="ps-4 py-3" style="width: 70px">Posición</th>
                   <th scope="col">Usuario Propietario</th>
                   <th scope="col" class="text-center">Total Recursos Compartidos</th>
                   <th scope="col">Desglose por Tipo</th>
@@ -238,28 +306,35 @@
                 </tr>
               </thead>
               <tbody>
-                @for (item of sharedTopUsers(); track item.userId; let i = $index) {
+                @for (item of paginatedSharedUsers(); track item.userId; let i = $index) {
                   <tr>
                     <td class="ps-4">
-                      @switch (i) {
-                        @case (0) {
+                      @let rank = getGlobalRank(i);
+                      @switch (rank) {
+                        @case (1) {
                           <span class="badge bg-warning text-dark rounded-pill px-2 py-1 fw-bold">
                             #1
                           </span>
                         }
-                        @case (1) {
-                          <span class="badge bg-secondary-subtle text-dark rounded-pill px-2 py-1 fw-bold">
+                        @case (2) {
+                          <span
+                            class="badge bg-secondary-subtle text-dark rounded-pill px-2 py-1 fw-bold"
+                          >
                             #2
                           </span>
                         }
-                        @case (2) {
-                          <span class="badge bg-info-subtle text-info-emphasis rounded-pill px-2 py-1 fw-bold">
+                        @case (3) {
+                          <span
+                            class="badge bg-info-subtle text-info-emphasis rounded-pill px-2 py-1 fw-bold"
+                          >
                             #3
                           </span>
                         }
                         @default {
-                          <span class="badge bg-light text-secondary rounded-pill px-2 py-1 fw-semibold">
-                            #{{ i + 1 }}
+                          <span
+                            class="badge bg-light text-secondary rounded-pill px-2 py-1 fw-semibold"
+                          >
+                            #{{ rank }}
                           </span>
                         }
                       }
@@ -268,7 +343,7 @@
                       <div class="d-flex align-items-center gap-2">
                         <div
                           class="avatar-circle bg-info-subtle text-info-emphasis fw-bold small rounded-circle d-flex align-items-center justify-content-center"
-                          style="width: 34px; height: 34px;"
+                          style="width: 34px; height: 34px"
                         >
                           {{ getInitials(item.userName) }}
                         </div>
@@ -289,16 +364,18 @@
                     </td>
                     <td>
                       <div class="d-flex align-items-center gap-2 small">
-                        <span class="badge bg-warning-subtle text-warning-emphasis rounded-pill">                          
+                        <span class="badge bg-warning-subtle text-warning-emphasis rounded-pill">
                           {{ item.sharedFoldersCount }} carpetas
                         </span>
-                        <span class="badge bg-primary-subtle text-primary-emphasis rounded-pill">                          
+                        <span class="badge bg-primary-subtle text-primary-emphasis rounded-pill">
                           {{ item.sharedFilesCount }} archivos
                         </span>
                       </div>
                     </td>
                     <td class="text-end pe-4">
-                      <span class="badge bg-success-subtle text-success-emphasis rounded-pill px-3 py-1 fw-semibold">                        
+                      <span
+                        class="badge bg-success-subtle text-success-emphasis rounded-pill px-3 py-1 fw-semibold"
+                      >
                         {{ item.collaboratorsCount }} usuarios
                       </span>
                     </td>
@@ -306,6 +383,62 @@
                 }
               </tbody>
             </table>
+          </div>
+
+          <!-- Pie de Tabla: Resumen y Controles de Paginación -->
+          <div
+            class="card-footer bg-white border-top py-3 px-4 d-flex flex-wrap align-items-center justify-content-between gap-3"
+          >
+            <div class="small text-muted">
+              Mostrando <strong>{{ sharedStartIndex() }}</strong> a
+              <strong>{{ sharedEndIndex() }}</strong> de
+              <strong>{{ filteredSharedUsers().length }}</strong> usuarios
+              @if (sharedSearchTerm()) {
+                <span>(filtrados de {{ sharedTopUsers().length }} en total)</span>
+              }
+            </div>
+
+            @if (totalSharedPages() > 1) {
+              <nav aria-label="Navegación de páginas del reporte">
+                <ul class="pagination pagination-sm mb-0">
+                  <!-- Botón Anterior -->
+                  <li class="page-item" [class.disabled]="sharedCurrentPage() === 1">
+                    <button
+                      type="button"
+                      class="page-link"
+                      (click)="goToSharedPage(sharedCurrentPage() - 1)"
+                      aria-label="Página anterior"
+                    >
+                      <i class="bi bi-chevron-left"></i>
+                    </button>
+                  </li>
+
+                  <!-- Números de Página -->
+                  @for (p of visiblePagesArray(); track p) {
+                    <li class="page-item" [class.active]="p === sharedCurrentPage()">
+                      <button type="button" class="page-link" (click)="goToSharedPage(p)">
+                        {{ p }}
+                      </button>
+                    </li>
+                  }
+
+                  <!-- Botón Siguiente -->
+                  <li
+                    class="page-item"
+                    [class.disabled]="sharedCurrentPage() === totalSharedPages()"
+                  >
+                    <button
+                      type="button"
+                      class="page-link"
+                      (click)="goToSharedPage(sharedCurrentPage() + 1)"
+                      aria-label="Página siguiente"
+                    >
+                      <i class="bi bi-chevron-right"></i>
+                    </button>
+                  </li>
+                </ul>
+              </nav>
+            }
           </div>
         }
       </div>
