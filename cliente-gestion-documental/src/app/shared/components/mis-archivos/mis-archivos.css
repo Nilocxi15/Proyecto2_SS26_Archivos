@@ -25,3 +25,12 @@
 .background-modal {
   background-color: rgba(0, 0, 0, 0.5);
 }
+
+.avatar-circle {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
