@@ -22,4 +22,10 @@ router.get("/storage/by-date-range", reportController.getFilesByDateRange);
 // Reporte: Archivos compartidos con mayor cantidad de usuarios
 router.get("/sharing/most-shared-files", reportController.getMostSharedFiles);
 
+// Listado de usuarios activos para selectores de reportes
+router.get("/users/select-options", reportController.getUsersForSelect);
+
+// Reporte: Recursos compartidos por un usuario seleccionado
+router.get("/sharing/by-user", reportController.getResourcesSharedByUser);
+
 module.exports = router;

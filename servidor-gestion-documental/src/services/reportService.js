@@ -1,4 +1,7 @@
+const mongoose = require("mongoose");
 const File = require("../models/File");
+const Folder = require("../models/Folder");
+const User = require("../models/User");
 
 /**
  * Reporte: Top 10 usuarios con mayor cantidad de archivos almacenados.
@@ -473,10 +476,198 @@ const getMostSharedFiles = async () => {
   return await File.aggregate(pipeline);
 };
 
+/**
+ * Reporte: Recursos compartidos por un usuario seleccionado.
+ * Unifica archivos y carpetas activas compartidas donde el usuario es el propietario,
+ * resolviendo la ruta del recurso y el listado de colaboradores con sus permisos.
+ * @param {string} userId - ID del usuario propietario
+ * @returns {Promise<Array<{resourceId: string, resourceName: string, resourceType: string, extension: string|null, sizeBytes: number|null, folderPath: string, collaboratorsCount: number, collaborators: Array<{userId: string, permission: string, userName: string, userEmail: string}>, sharedAt: Date}>>}
+ */
+const getResourcesSharedByUser = async (userId) => {
+  const ownerObjectId = new mongoose.Types.ObjectId(userId);
+
+  const pipeline = [
+    {
+      $match: {
+        ownerId: ownerObjectId,
+        isTrash: false,
+        "sharedWith.0": { $exists: true },
+      },
+    },
+    {
+      $lookup: {
+        from: "folders",
+        localField: "folderId",
+        foreignField: "_id",
+        as: "folderInfo",
+      },
+    },
+    {
+      $unwind: {
+        path: "$folderInfo",
+        preserveNullAndEmptyArrays: true,
+      },
+    },
+    {
+      $project: {
+        _id: 0,
+        resourceId: "$_id",
+        resourceName: "$name",
+        resourceType: { $literal: "file" },
+        extension: "$extension",
+        sizeBytes: "$sizeBytes",
+        folderPath: {
+          $cond: [
+            { $ifNull: ["$folderInfo.path", false] },
+            "$folderInfo.path",
+            "/",
+          ],
+        },
+        collaboratorsCount: { $size: "$sharedWith" },
+        sharedWith: "$sharedWith",
+        sharedAt: "$updatedAt",
+      },
+    },
+    {
+      $unionWith: {
+        coll: "folders",
+        pipeline: [
+          {
+            $match: {
+              ownerId: ownerObjectId,
+              isTrash: false,
+              "sharedWith.0": { $exists: true },
+            },
+          },
+          {
+            $project: {
+              _id: 0,
+              resourceId: "$_id",
+              resourceName: "$name",
+              resourceType: { $literal: "folder" },
+              extension: { $literal: null },
+              sizeBytes: { $literal: null },
+              folderPath: "$path",
+              collaboratorsCount: { $size: "$sharedWith" },
+              sharedWith: "$sharedWith",
+              sharedAt: "$updatedAt",
+            },
+          },
+        ],
+      },
+    },
+    {
+      $lookup: {
+        from: "users",
+        localField: "sharedWith.userId",
+        foreignField: "_id",
+        as: "collabUsers",
+      },
+    },
+    {
+      $project: {
+        resourceId: 1,
+        resourceName: 1,
+        resourceType: 1,
+        extension: 1,
+        sizeBytes: 1,
+        folderPath: 1,
+        collaboratorsCount: 1,
+        sharedAt: 1,
+        collaborators: {
+          $map: {
+            input: "$sharedWith",
+            as: "sw",
+            in: {
+              userId: "$$sw.userId",
+              permission: "$$sw.permission",
+              userName: {
+                $let: {
+                  vars: {
+                    matchedUser: {
+                      $arrayElemAt: [
+                        {
+                          $filter: {
+                            input: "$collabUsers",
+                            as: "cu",
+                            cond: { $eq: ["$$cu._id", "$$sw.userId"] },
+                          },
+                        },
+                        0,
+                      ],
+                    },
+                  },
+                  in: {
+                    $trim: {
+                      input: {
+                        $concat: [
+                          { $ifNull: ["$$matchedUser.name", ""] },
+                          " ",
+                          { $ifNull: ["$$matchedUser.lastName", ""] },
+                        ],
+                      },
+                    },
+                  },
+                },
+              },
+              userEmail: {
+                $let: {
+                  vars: {
+                    matchedUser: {
+                      $arrayElemAt: [
+                        {
+                          $filter: {
+                            input: "$collabUsers",
+                            as: "cu",
+                            cond: { $eq: ["$$cu._id", "$$sw.userId"] },
+                          },
+                        },
+                        0,
+                      ],
+                    },
+                  },
+                  in: { $ifNull: ["$$matchedUser.email", ""] },
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+    {
+      $sort: {
+        sharedAt: -1,
+        resourceName: 1,
+      },
+    },
+  ];
+
+  return await File.aggregate(pipeline);
+};
+
+/**
+ * Obtiene los usuarios activos con formato optimizado para selectores de reportes
+ * @returns {Promise<Array<{userId: string, userName: string, userEmail: string}>>}
+ */
+const getUsersForSelect = async () => {
+  const users = await User.find({ status: "activo" })
+    .select("_id name lastName email")
+    .sort({ name: 1, lastName: 1 })
+    .lean();
+
+  return users.map((u) => ({
+    userId: u._id.toString(),
+    userName: `${u.name || ""} ${u.lastName || ""}`.trim(),
+    userEmail: u.email,
+  }));
+};
+
 module.exports = {
   getTopUsersByFiles,
   getTopUsersBySharedResources,
   getFilesGroupedByType,
   getFilesByDateRange,
   getMostSharedFiles,
+  getResourcesSharedByUser,
+  getUsersForSelect,
 };

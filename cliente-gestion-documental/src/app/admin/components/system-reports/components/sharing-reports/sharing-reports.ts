@@ -27,13 +27,27 @@ export class SharingReports implements OnInit {
   readonly isLoadingMostSharedFiles = this.reportService.isLoadingMostSharedFiles;
   readonly lastUpdatedMostSharedFilesAt = this.reportService.lastUpdatedMostSharedFilesAt;
 
-  // Selector de usuario para los subreportes 2 y 3
+  // Selector de usuario para los subreportes 2 y 3 (vinculado a la lista ligera de usuarios activos)
   readonly selectedUserId = signal<string>('');
-  readonly availableUsers = signal<UserSelectOption[]>([]);
+  readonly availableUsers = this.reportService.usersForSelect;
+  readonly isLoadingUsersForSelect = this.reportService.isLoadingUsersForSelect;
 
-  // Colecciones reactivas de datos para futuros reportes 2 y 3
-  readonly resourcesSharedByUser = signal<UserResourceSharedItem[]>([]);
+  // Estado reactivo vinculado al servicio para recursos compartidos por usuario
+  readonly resourcesSharedByUser = this.reportService.resourcesSharedByUser;
+  readonly isLoadingSharedByUser = this.reportService.isLoadingSharedByUser;
+  readonly lastUpdatedSharedByUserAt = this.reportService.lastUpdatedSharedByUserAt;
+
+  // Colección reactiva para futuro reporte 3 (recursos recibidos)
   readonly resourcesReceivedByUser = signal<UserResourceReceivedItem[]>([]);
+
+  // KPIs computados para recursos compartidos por el usuario seleccionado
+  readonly sharedByUserFilesCount = computed(
+    () => this.resourcesSharedByUser().filter((r) => r.resourceType === 'file').length,
+  );
+
+  readonly sharedByUserFoldersCount = computed(
+    () => this.resourcesSharedByUser().filter((r) => r.resourceType === 'folder').length,
+  );
 
   // --- REPORTE 1: Archivos más compartidos ---
   readonly mostSharedSearchTerm = signal<string>('');
@@ -223,6 +237,9 @@ export class SharingReports implements OnInit {
     if (this.activeSubReport() === 'most-shared-files') {
       return this.isLoadingMostSharedFiles();
     }
+    if (this.activeSubReport() === 'shared-by-user') {
+      return this.isLoadingSharedByUser();
+    }
     return false;
   });
 
@@ -230,11 +247,19 @@ export class SharingReports implements OnInit {
     if (this.activeSubReport() === 'most-shared-files') {
       return this.lastUpdatedMostSharedFilesAt();
     }
+    if (this.activeSubReport() === 'shared-by-user') {
+      return this.lastUpdatedSharedByUserAt();
+    }
     return null;
   });
 
   ngOnInit(): void {
     this.loadMostSharedFiles();
+    this.loadUsersForSelect();
+  }
+
+  loadUsersForSelect(): void {
+    this.reportService.getUsersForSelect().subscribe();
   }
 
   loadMostSharedFiles(): void {
@@ -245,16 +270,35 @@ export class SharingReports implements OnInit {
     });
   }
 
+  loadResourcesSharedByUser(): void {
+    const userId = this.selectedUserId();
+    if (!userId) return;
+    this.reportService.getResourcesSharedByUser(userId).subscribe({
+      next: () => {
+        this.sharedByUserCurrentPage.set(1);
+      },
+    });
+  }
+
   switchSubReport(view: SharingReportView): void {
     this.activeSubReport.set(view);
     if (view === 'most-shared-files' && this.mostSharedFiles().length === 0) {
       this.loadMostSharedFiles();
+    } else if (view === 'shared-by-user') {
+      if (this.availableUsers().length === 0) {
+        this.loadUsersForSelect();
+      }
+      if (this.selectedUserId() && this.resourcesSharedByUser().length === 0) {
+        this.loadResourcesSharedByUser();
+      }
     }
   }
 
   refreshActiveReport(): void {
     if (this.activeSubReport() === 'most-shared-files') {
       this.loadMostSharedFiles();
+    } else if (this.activeSubReport() === 'shared-by-user') {
+      this.loadResourcesSharedByUser();
     }
   }
 
@@ -262,6 +306,9 @@ export class SharingReports implements OnInit {
     this.selectedUserId.set(userId);
     this.sharedByUserCurrentPage.set(1);
     this.receivedByUserCurrentPage.set(1);
+    if (this.activeSubReport() === 'shared-by-user') {
+      this.loadResourcesSharedByUser();
+    }
   }
 
   onMostSharedSearch(term: string): void {

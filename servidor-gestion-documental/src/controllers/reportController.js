@@ -86,10 +86,54 @@ const getMostSharedFiles = async (req, res, next) => {
   }
 };
 
+/**
+ * GET /api/reports/sharing/by-user
+ * Retorna los recursos compartidos por un usuario seleccionado
+ */
+const getResourcesSharedByUser = async (req, res, next) => {
+  try {
+    const { userId } = req.query;
+    if (!userId) {
+      return res.status(400).json({
+        status: "error",
+        mensaje: "El parámetro userId es obligatorio",
+      });
+    }
+
+    const data = await reportService.getResourcesSharedByUser(userId);
+
+    return res.status(200).json({
+      status: "success",
+      data,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * GET /api/reports/users/select-options
+ * Retorna el listado ligero de usuarios activos para los selectores de los reportes
+ */
+const getUsersForSelect = async (req, res, next) => {
+  try {
+    const data = await reportService.getUsersForSelect();
+
+    return res.status(200).json({
+      status: "success",
+      data,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   getTopUsersByFiles,
   getTopUsersBySharedResources,
   getFilesGroupedByType,
   getFilesByDateRange,
   getMostSharedFiles,
+  getResourcesSharedByUser,
+  getUsersForSelect,
 };

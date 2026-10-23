@@ -10,7 +10,11 @@ import {
   FileTypeReportItem,
   DateRangeFileItem,
 } from '../../admin/components/system-reports/components/storage-reports/storage-reports.models';
-import { MostSharedFileReportItem } from '../../admin/components/system-reports/components/sharing-reports/sharing-reports.models';
+import {
+  MostSharedFileReportItem,
+  UserResourceSharedItem,
+  UserSelectOption,
+} from '../../admin/components/system-reports/components/sharing-reports/sharing-reports.models';
 
 export type {
   UserStorageReportItem,
@@ -18,6 +22,8 @@ export type {
   FileTypeReportItem,
   DateRangeFileItem,
   MostSharedFileReportItem,
+  UserResourceSharedItem,
+  UserSelectOption,
 };
 
 interface ApiResponse<T> {
@@ -57,6 +63,61 @@ export class ReportService {
   readonly mostSharedFiles = signal<MostSharedFileReportItem[]>([]);
   readonly isLoadingMostSharedFiles = signal<boolean>(false);
   readonly lastUpdatedMostSharedFilesAt = signal<Date | null>(null);
+
+  // Estado reactivo para usuarios en selectores de reportes
+  readonly usersForSelect = signal<UserSelectOption[]>([]);
+  readonly isLoadingUsersForSelect = signal<boolean>(false);
+
+  // Estado reactivo para recursos compartidos por un usuario
+  readonly resourcesSharedByUser = signal<UserResourceSharedItem[]>([]);
+  readonly isLoadingSharedByUser = signal<boolean>(false);
+  readonly lastUpdatedSharedByUserAt = signal<Date | null>(null);
+
+  /**
+   * Obtiene la lista ligera de usuarios activos para selectores de reportes
+   */
+  getUsersForSelect(): Observable<ApiResponse<UserSelectOption[]>> {
+    this.isLoadingUsersForSelect.set(true);
+    return this.http
+      .get<ApiResponse<UserSelectOption[]>>(`${this.apiUrl}/users/select-options`)
+      .pipe(
+        tap({
+          next: (res) => {
+            if (res.status === 'success' && res.data) {
+              this.usersForSelect.set(res.data);
+            }
+            this.isLoadingUsersForSelect.set(false);
+          },
+          error: () => {
+            this.isLoadingUsersForSelect.set(false);
+          },
+        }),
+      );
+  }
+
+  /**
+   * Obtiene los recursos compartidos por un usuario seleccionado
+   */
+  getResourcesSharedByUser(userId: string): Observable<ApiResponse<UserResourceSharedItem[]>> {
+    this.isLoadingSharedByUser.set(true);
+    const params = new HttpParams().set('userId', userId);
+    return this.http
+      .get<ApiResponse<UserResourceSharedItem[]>>(`${this.apiUrl}/sharing/by-user`, { params })
+      .pipe(
+        tap({
+          next: (res) => {
+            if (res.status === 'success' && res.data) {
+              this.resourcesSharedByUser.set(res.data);
+              this.lastUpdatedSharedByUserAt.set(new Date());
+            }
+            this.isLoadingSharedByUser.set(false);
+          },
+          error: () => {
+            this.isLoadingSharedByUser.set(false);
+          },
+        }),
+      );
+  }
 
   /**
    * Obtiene los archivos compartidos con mayor cantidad de usuarios

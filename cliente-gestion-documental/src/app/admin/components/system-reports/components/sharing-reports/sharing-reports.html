@@ -324,9 +324,19 @@
               colaboradores.
             </p>
           </div>
-          <span class="badge bg-info-subtle text-info-emphasis rounded-pill px-3 py-2 small">
-            {{ resourcesSharedByUser().length }} recursos compartidos
-          </span>
+          <div class="d-flex flex-wrap align-items-center gap-2">
+            <span class="badge bg-info-subtle text-info-emphasis rounded-pill px-3 py-2 small">
+              {{ resourcesSharedByUser().length }} recursos compartidos
+            </span>
+            @if (resourcesSharedByUser().length > 0) {
+              <span class="badge bg-primary-subtle text-primary-emphasis rounded-pill px-2 py-1 small">
+                {{ sharedByUserFilesCount() }} archivos
+              </span>
+              <span class="badge bg-warning-subtle text-warning-emphasis rounded-pill px-2 py-1 small">
+                {{ sharedByUserFoldersCount() }} carpetas
+              </span>
+            }
+          </div>
         </div>
 
         <!-- Selector de Usuario Propietario -->
