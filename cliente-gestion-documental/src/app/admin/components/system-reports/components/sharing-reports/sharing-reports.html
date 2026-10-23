@@ -201,8 +201,7 @@
                       }
                     </td>
                     <td>
-                      <div class="d-flex align-items-center gap-2">
-                        <i class="bi fs-5" [class]="getFileIcon(item.extension)"></i>
+                      <div class="d-flex align-items-center gap-2">                        
                         <div>
                           <div
                             class="fw-semibold text-dark small text-truncate"
@@ -329,10 +328,14 @@
               {{ resourcesSharedByUser().length }} recursos compartidos
             </span>
             @if (resourcesSharedByUser().length > 0) {
-              <span class="badge bg-primary-subtle text-primary-emphasis rounded-pill px-2 py-1 small">
+              <span
+                class="badge bg-primary-subtle text-primary-emphasis rounded-pill px-2 py-1 small"
+              >
                 {{ sharedByUserFilesCount() }} archivos
               </span>
-              <span class="badge bg-warning-subtle text-warning-emphasis rounded-pill px-2 py-1 small">
+              <span
+                class="badge bg-warning-subtle text-warning-emphasis rounded-pill px-2 py-1 small"
+              >
                 {{ sharedByUserFoldersCount() }} carpetas
               </span>
             }
@@ -463,11 +466,6 @@
                   <tr>
                     <td class="ps-4">
                       <div class="d-flex align-items-center gap-2">
-                        @if (item.resourceType === 'folder') {
-                          <i class="bi bi-folder-fill fs-5 text-warning"></i>
-                        } @else {
-                          <i class="bi fs-5" [class]="getFileIcon(item.extension)"></i>
-                        }
                         <span
                           class="fw-semibold text-dark small text-truncate"
                           style="max-width: 200px"
@@ -488,7 +486,6 @@
                       </span>
                     </td>
                     <td class="text-muted small">
-                      <i class="bi bi-folder2 text-secondary me-1"></i>
                       <span>{{ item.folderPath || '/' }}</span>
                     </td>
                     <td class="small text-dark fw-semibold">
@@ -601,9 +598,25 @@
               con permisos asignados.
             </p>
           </div>
-          <span class="badge bg-success-subtle text-success-emphasis rounded-pill px-3 py-2 small">
-            {{ resourcesReceivedByUser().length }} recursos recibidos
-          </span>
+          <div class="d-flex flex-wrap align-items-center gap-2">
+            <span
+              class="badge bg-success-subtle text-success-emphasis rounded-pill px-3 py-2 small"
+            >
+              {{ resourcesReceivedByUser().length }} recursos recibidos
+            </span>
+            @if (resourcesReceivedByUser().length > 0) {
+              <span
+                class="badge bg-primary-subtle text-primary-emphasis rounded-pill px-2 py-1 small"
+              >
+                {{ receivedByUserFilesCount() }} archivos
+              </span>
+              <span
+                class="badge bg-warning-subtle text-warning-emphasis rounded-pill px-2 py-1 small"
+              >
+                {{ receivedByUserFoldersCount() }} carpetas
+              </span>
+            }
+          </div>
         </div>
 
         <!-- Selector de Usuario Receptor -->
@@ -731,11 +744,6 @@
                   <tr>
                     <td class="ps-4">
                       <div class="d-flex align-items-center gap-2">
-                        @if (item.resourceType === 'folder') {
-                          <i class="bi bi-folder-fill fs-5 text-warning"></i>
-                        } @else {
-                          <i class="bi fs-5" [class]="getFileIcon(item.extension)"></i>
-                        }
                         <span
                           class="fw-semibold text-dark small text-truncate"
                           style="max-width: 200px"
@@ -780,7 +788,6 @@
                       </span>
                     </td>
                     <td class="text-muted small">
-                      <i class="bi bi-folder2 text-secondary me-1"></i>
                       <span>{{ item.folderPath || '/' }}</span>
                     </td>
                     <td class="small text-dark fw-semibold">

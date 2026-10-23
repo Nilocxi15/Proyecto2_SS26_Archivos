@@ -112,6 +112,31 @@ const getResourcesSharedByUser = async (req, res, next) => {
 };
 
 /**
+ * GET /api/reports/sharing/received-by-user
+ * Retorna los recursos compartidos recibidos por un usuario seleccionado
+ */
+const getResourcesReceivedByUser = async (req, res, next) => {
+  try {
+    const { userId } = req.query;
+    if (!userId) {
+      return res.status(400).json({
+        status: "error",
+        mensaje: "El parámetro userId es obligatorio",
+      });
+    }
+
+    const data = await reportService.getResourcesReceivedByUser(userId);
+
+    return res.status(200).json({
+      status: "success",
+      data,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
  * GET /api/reports/users/select-options
  * Retorna el listado ligero de usuarios activos para los selectores de los reportes
  */
@@ -135,5 +160,6 @@ module.exports = {
   getFilesByDateRange,
   getMostSharedFiles,
   getResourcesSharedByUser,
+  getResourcesReceivedByUser,
   getUsersForSelect,
 };

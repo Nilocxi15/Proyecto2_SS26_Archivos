@@ -646,6 +646,181 @@ const getResourcesSharedByUser = async (userId) => {
 };
 
 /**
+ * Reporte: Recursos recibidos por un usuario seleccionado.
+ * Unifica archivos y carpetas activas donde el usuario figura en sharedWith,
+ * resolviendo el propietario original, el nivel de permiso otorgado, la ruta y detalles del recurso.
+ * @param {string} userId - ID del usuario colaborador / receptor
+ * @returns {Promise<Array<{resourceId: string, resourceName: string, resourceType: string, extension: string|null, sizeBytes: number|null, folderPath: string, ownerName: string, ownerEmail: string, permission: string, receivedAt: Date}>>}
+ */
+const getResourcesReceivedByUser = async (userId) => {
+  const userObjectId = new mongoose.Types.ObjectId(userId);
+
+  const pipeline = [
+    {
+      $match: {
+        "sharedWith.userId": userObjectId,
+        isTrash: false,
+      },
+    },
+    {
+      $lookup: {
+        from: "folders",
+        localField: "folderId",
+        foreignField: "_id",
+        as: "folderInfo",
+      },
+    },
+    {
+      $unwind: {
+        path: "$folderInfo",
+        preserveNullAndEmptyArrays: true,
+      },
+    },
+    {
+      $lookup: {
+        from: "users",
+        localField: "ownerId",
+        foreignField: "_id",
+        as: "ownerInfo",
+      },
+    },
+    {
+      $unwind: {
+        path: "$ownerInfo",
+        preserveNullAndEmptyArrays: true,
+      },
+    },
+    {
+      $project: {
+        _id: 0,
+        resourceId: "$_id",
+        resourceName: "$name",
+        resourceType: { $literal: "file" },
+        extension: "$extension",
+        sizeBytes: "$sizeBytes",
+        folderPath: {
+          $cond: [
+            { $ifNull: ["$folderInfo.path", false] },
+            "$folderInfo.path",
+            "/",
+          ],
+        },
+        ownerName: {
+          $trim: {
+            input: {
+              $concat: [
+                { $ifNull: ["$ownerInfo.name", ""] },
+                " ",
+                { $ifNull: ["$ownerInfo.lastName", ""] },
+              ],
+            },
+          },
+        },
+        ownerEmail: "$ownerInfo.email",
+        permission: {
+          $let: {
+            vars: {
+              myShare: {
+                $arrayElemAt: [
+                  {
+                    $filter: {
+                      input: "$sharedWith",
+                      as: "sw",
+                      cond: { $eq: ["$$sw.userId", userObjectId] },
+                    },
+                  },
+                  0,
+                ],
+              },
+            },
+            in: { $ifNull: ["$$myShare.permission", "lectura"] },
+          },
+        },
+        receivedAt: "$updatedAt",
+      },
+    },
+    {
+      $unionWith: {
+        coll: "folders",
+        pipeline: [
+          {
+            $match: {
+              "sharedWith.userId": userObjectId,
+              isTrash: false,
+            },
+          },
+          {
+            $lookup: {
+              from: "users",
+              localField: "ownerId",
+              foreignField: "_id",
+              as: "ownerInfo",
+            },
+          },
+          {
+            $unwind: {
+              path: "$ownerInfo",
+              preserveNullAndEmptyArrays: true,
+            },
+          },
+          {
+            $project: {
+              _id: 0,
+              resourceId: "$_id",
+              resourceName: "$name",
+              resourceType: { $literal: "folder" },
+              extension: { $literal: null },
+              sizeBytes: { $literal: null },
+              folderPath: "$path",
+              ownerName: {
+                $trim: {
+                  input: {
+                    $concat: [
+                      { $ifNull: ["$ownerInfo.name", ""] },
+                      " ",
+                      { $ifNull: ["$ownerInfo.lastName", ""] },
+                    ],
+                  },
+                },
+              },
+              ownerEmail: "$ownerInfo.email",
+              permission: {
+                $let: {
+                  vars: {
+                    myShare: {
+                      $arrayElemAt: [
+                        {
+                          $filter: {
+                            input: "$sharedWith",
+                            as: "sw",
+                            cond: { $eq: ["$$sw.userId", userObjectId] },
+                          },
+                        },
+                        0,
+                      ],
+                    },
+                  },
+                  in: { $ifNull: ["$$myShare.permission", "lectura"] },
+                },
+              },
+              receivedAt: "$updatedAt",
+            },
+          },
+        ],
+      },
+    },
+    {
+      $sort: {
+        receivedAt: -1,
+        resourceName: 1,
+      },
+    },
+  ];
+
+  return await File.aggregate(pipeline);
+};
+
+/**
  * Obtiene los usuarios activos con formato optimizado para selectores de reportes
  * @returns {Promise<Array<{userId: string, userName: string, userEmail: string}>>}
  */
@@ -669,5 +844,6 @@ module.exports = {
   getFilesByDateRange,
   getMostSharedFiles,
   getResourcesSharedByUser,
+  getResourcesReceivedByUser,
   getUsersForSelect,
 };

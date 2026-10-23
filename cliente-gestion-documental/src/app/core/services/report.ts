@@ -13,6 +13,7 @@ import {
 import {
   MostSharedFileReportItem,
   UserResourceSharedItem,
+  UserResourceReceivedItem,
   UserSelectOption,
 } from '../../admin/components/system-reports/components/sharing-reports/sharing-reports.models';
 
@@ -23,6 +24,7 @@ export type {
   DateRangeFileItem,
   MostSharedFileReportItem,
   UserResourceSharedItem,
+  UserResourceReceivedItem,
   UserSelectOption,
 };
 
@@ -73,6 +75,11 @@ export class ReportService {
   readonly isLoadingSharedByUser = signal<boolean>(false);
   readonly lastUpdatedSharedByUserAt = signal<Date | null>(null);
 
+  // Estado reactivo para recursos recibidos por un usuario
+  readonly resourcesReceivedByUser = signal<UserResourceReceivedItem[]>([]);
+  readonly isLoadingReceivedByUser = signal<boolean>(false);
+  readonly lastUpdatedReceivedByUserAt = signal<Date | null>(null);
+
   /**
    * Obtiene la lista ligera de usuarios activos para selectores de reportes
    */
@@ -114,6 +121,30 @@ export class ReportService {
           },
           error: () => {
             this.isLoadingSharedByUser.set(false);
+          },
+        }),
+      );
+  }
+
+  /**
+   * Obtiene los recursos compartidos recibidos por un usuario seleccionado
+   */
+  getResourcesReceivedByUser(userId: string): Observable<ApiResponse<UserResourceReceivedItem[]>> {
+    this.isLoadingReceivedByUser.set(true);
+    const params = new HttpParams().set('userId', userId);
+    return this.http
+      .get<ApiResponse<UserResourceReceivedItem[]>>(`${this.apiUrl}/sharing/received-by-user`, { params })
+      .pipe(
+        tap({
+          next: (res) => {
+            if (res.status === 'success' && res.data) {
+              this.resourcesReceivedByUser.set(res.data);
+              this.lastUpdatedReceivedByUserAt.set(new Date());
+            }
+            this.isLoadingReceivedByUser.set(false);
+          },
+          error: () => {
+            this.isLoadingReceivedByUser.set(false);
           },
         }),
       );

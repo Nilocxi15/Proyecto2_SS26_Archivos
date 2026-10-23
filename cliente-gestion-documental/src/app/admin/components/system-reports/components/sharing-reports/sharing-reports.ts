@@ -37,8 +37,19 @@ export class SharingReports implements OnInit {
   readonly isLoadingSharedByUser = this.reportService.isLoadingSharedByUser;
   readonly lastUpdatedSharedByUserAt = this.reportService.lastUpdatedSharedByUserAt;
 
-  // Colección reactiva para futuro reporte 3 (recursos recibidos)
-  readonly resourcesReceivedByUser = signal<UserResourceReceivedItem[]>([]);
+  // Colección reactiva para reporte 3 (recursos recibidos por usuario)
+  readonly resourcesReceivedByUser = this.reportService.resourcesReceivedByUser;
+  readonly isLoadingReceivedByUser = this.reportService.isLoadingReceivedByUser;
+  readonly lastUpdatedReceivedByUserAt = this.reportService.lastUpdatedReceivedByUserAt;
+
+  // KPIs computados para recursos recibidos por el usuario seleccionado
+  readonly receivedByUserFilesCount = computed(
+    () => this.resourcesReceivedByUser().filter((r) => r.resourceType === 'file').length,
+  );
+
+  readonly receivedByUserFoldersCount = computed(
+    () => this.resourcesReceivedByUser().filter((r) => r.resourceType === 'folder').length,
+  );
 
   // KPIs computados para recursos compartidos por el usuario seleccionado
   readonly sharedByUserFilesCount = computed(
@@ -240,6 +251,9 @@ export class SharingReports implements OnInit {
     if (this.activeSubReport() === 'shared-by-user') {
       return this.isLoadingSharedByUser();
     }
+    if (this.activeSubReport() === 'received-by-user') {
+      return this.isLoadingReceivedByUser();
+    }
     return false;
   });
 
@@ -249,6 +263,9 @@ export class SharingReports implements OnInit {
     }
     if (this.activeSubReport() === 'shared-by-user') {
       return this.lastUpdatedSharedByUserAt();
+    }
+    if (this.activeSubReport() === 'received-by-user') {
+      return this.lastUpdatedReceivedByUserAt();
     }
     return null;
   });
@@ -280,6 +297,16 @@ export class SharingReports implements OnInit {
     });
   }
 
+  loadResourcesReceivedByUser(): void {
+    const userId = this.selectedUserId();
+    if (!userId) return;
+    this.reportService.getResourcesReceivedByUser(userId).subscribe({
+      next: () => {
+        this.receivedByUserCurrentPage.set(1);
+      },
+    });
+  }
+
   switchSubReport(view: SharingReportView): void {
     this.activeSubReport.set(view);
     if (view === 'most-shared-files' && this.mostSharedFiles().length === 0) {
@@ -291,6 +318,13 @@ export class SharingReports implements OnInit {
       if (this.selectedUserId() && this.resourcesSharedByUser().length === 0) {
         this.loadResourcesSharedByUser();
       }
+    } else if (view === 'received-by-user') {
+      if (this.availableUsers().length === 0) {
+        this.loadUsersForSelect();
+      }
+      if (this.selectedUserId() && this.resourcesReceivedByUser().length === 0) {
+        this.loadResourcesReceivedByUser();
+      }
     }
   }
 
@@ -299,6 +333,8 @@ export class SharingReports implements OnInit {
       this.loadMostSharedFiles();
     } else if (this.activeSubReport() === 'shared-by-user') {
       this.loadResourcesSharedByUser();
+    } else if (this.activeSubReport() === 'received-by-user') {
+      this.loadResourcesReceivedByUser();
     }
   }
 
@@ -308,6 +344,8 @@ export class SharingReports implements OnInit {
     this.receivedByUserCurrentPage.set(1);
     if (this.activeSubReport() === 'shared-by-user') {
       this.loadResourcesSharedByUser();
+    } else if (this.activeSubReport() === 'received-by-user') {
+      this.loadResourcesReceivedByUser();
     }
   }
 

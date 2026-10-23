@@ -28,4 +28,10 @@ router.get("/users/select-options", reportController.getUsersForSelect);
 // Reporte: Recursos compartidos por un usuario seleccionado
 router.get("/sharing/by-user", reportController.getResourcesSharedByUser);
 
+// Reporte: Recursos recibidos por un usuario seleccionado
+router.get(
+  "/sharing/received-by-user",
+  reportController.getResourcesReceivedByUser,
+);
+
 module.exports = router;
