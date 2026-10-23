@@ -1,0 +1,20 @@
+.user-reports-view {
+  width: 100%;
+}
+
+.avatar-circle {
+  font-size: 0.85rem;
+}
+
+.bg-purple-subtle {
+  background-color: #f3e8ff;
+}
+
+.text-purple-emphasis {
+  color: #6b21a8;
+}
+
+.empty-icon-circle {
+  color: #94a3b8 !important;
+  background-color: #f1f5f9 !important;
+}

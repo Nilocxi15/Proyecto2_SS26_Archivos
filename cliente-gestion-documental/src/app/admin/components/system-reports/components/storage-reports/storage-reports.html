@@ -1,0 +1,681 @@
+<div class="storage-reports-view">
+  <!-- Barra de Selección de Subreporte y Botón Actualizar -->
+  <div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-3">
+    <div class="d-flex flex-wrap align-items-center gap-2">
+      <button
+        type="button"
+        class="btn btn-sm rounded-pill px-3 fw-medium"
+        [class.btn-primary]="activeSubReport() === 'by-type'"
+        [class.btn-outline-secondary]="activeSubReport() !== 'by-type'"
+        (click)="switchSubReport('by-type')"
+      >
+        Cantidad de archivos agrupados por tipo
+      </button>
+
+      <button
+        type="button"
+        class="btn btn-sm rounded-pill px-3 fw-medium"
+        [class.btn-primary]="activeSubReport() === 'by-date-range'"
+        [class.btn-outline-secondary]="activeSubReport() !== 'by-date-range'"
+        (click)="switchSubReport('by-date-range')"
+      >
+        Archivos almacenados dentro de un rango de fechas
+      </button>
+
+      <button
+        type="button"
+        class="btn btn-sm rounded-pill px-3 fw-medium"
+        [class.btn-primary]="activeSubReport() === 'by-operations'"
+        [class.btn-outline-secondary]="activeSubReport() !== 'by-operations'"
+        (click)="switchSubReport('by-operations')"
+      >
+        Archivos con mayor cantidad de operaciones registradas
+      </button>
+    </div>
+
+    <div class="d-flex align-items-center gap-3">
+      @if (currentLastUpdatedAt()) {
+        <div class="text-muted small">
+          Última consulta: {{ formatDate(currentLastUpdatedAt()?.toISOString()) }}
+        </div>
+      }
+
+      <button
+        type="button"
+        class="btn btn-outline-primary btn-sm rounded-pill px-3 d-flex align-items-center gap-1"
+        [disabled]="currentIsLoading()"
+        (click)="refreshActiveReport()"
+        title="Actualizar datos del reporte activo"
+      >
+        <i
+          class="bi bi-arrow-clockwise"
+          [class.spinner-border]="currentIsLoading()"
+          [class.spinner-border-sm]="currentIsLoading()"
+        ></i>
+        <span>Actualizar</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- REPORTE 1: CANTIDAD DE ARCHIVOS AGRUPADOS POR TIPO -->
+  @if (activeSubReport() === 'by-type') {
+    <div class="card border rounded-3 overflow-hidden shadow-sm bg-white">
+      <div class="card-header bg-light border-bottom py-3 px-4">
+        <div class="d-flex align-items-center justify-content-between">
+          <div>
+            <h2 class="h6 fw-bold text-dark mb-1">Cantidad de archivos agrupados por tipo</h2>
+            <p class="text-muted small mb-0">
+              Distribución y volumen de almacenamiento de documentos clasificados según su extensión
+              y formato.
+            </p>
+          </div>
+          <span class="badge bg-primary-subtle text-primary-emphasis rounded-pill px-3 py-2 small">
+            {{ filesByType().length }} tipos registrados
+          </span>
+        </div>
+
+        <!-- Tarjetas de Resumen KPI cuando hay datos -->
+        @if (filesByType().length > 0) {
+          <div class="row g-2 mt-2 pt-2 border-top">
+            <div class="col-12 col-sm-4">
+              <div class="d-flex align-items-center gap-2 p-2 bg-white rounded-2 border">
+                <div
+                  class="rounded-circle bg-primary-subtle text-primary d-flex align-items-center justify-content-center"
+                  style="width: 34px; height: 34px"
+                >
+                  <i class="bi bi-files fs-6"></i>
+                </div>
+                <div>
+                  <div class="text-muted" style="font-size: 0.75rem">Total de Archivos</div>
+                  <div class="fw-bold text-dark small mb-0">{{ totalFilesCount() }}</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="col-12 col-sm-4">
+              <div class="d-flex align-items-center gap-2 p-2 bg-white rounded-2 border">
+                <div
+                  class="rounded-circle bg-success-subtle text-success d-flex align-items-center justify-content-center"
+                  style="width: 34px; height: 34px"
+                >
+                  <i class="bi bi-hdd-fill fs-6"></i>
+                </div>
+                <div>
+                  <div class="text-muted" style="font-size: 0.75rem">Espacio Total Ocupado</div>
+                  <div class="fw-bold text-dark small mb-0">
+                    {{ formatBytes(grandTotalSizeBytes()) }}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="col-12 col-sm-4">
+              <div class="d-flex align-items-center gap-2 p-2 bg-white rounded-2 border">
+                <div
+                  class="rounded-circle bg-info-subtle text-info-emphasis d-flex align-items-center justify-content-center"
+                  style="width: 34px; height: 34px"
+                >
+                  <i class="bi bi-pie-chart-fill fs-6"></i>
+                </div>
+                <div>
+                  <div class="text-muted" style="font-size: 0.75rem">Tipos Detectados</div>
+                  <div class="fw-bold text-dark small mb-0">{{ filesByType().length }}</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        }
+      </div>
+
+      <div class="card-body p-0">
+        @if (currentIsLoading()) {
+          <div class="text-center py-5 text-muted">
+            <div class="spinner-border spinner-border-sm text-primary mb-2" role="status"></div>
+            <div class="small">Consultando reporte en tiempo real...</div>
+          </div>
+        } @else if (filesByType().length === 0) {
+          <!-- Estado Vacío sin registros -->
+          <div class="text-center py-5 px-3">
+            <div
+              class="empty-icon-circle bg-light text-muted mx-auto mb-3 d-flex align-items-center justify-content-center rounded-circle"
+              style="width: 64px; height: 64px"
+            >
+              <i class="bi bi-pie-chart fs-2"></i>
+            </div>
+            <h3 class="h6 fw-semibold text-dark mb-1">No hay registros de tipos de archivos</h3>
+            <p class="text-muted small mx-auto mb-0" style="max-width: 460px">
+              Actualmente no se registran archivos cargados en el sistema para agrupar por formato.
+              Cuando se almacenen documentos, se visualizará aquí el total por tipo y su consumo.
+            </p>
+          </div>
+        } @else {
+          <!-- Tabla de Resultados -->
+          <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+              <thead class="table-light text-secondary small text-uppercase">
+                <tr>
+                  <th scope="col" class="ps-4 py-3" style="width: 80px">Formato</th>
+                  <th scope="col">Extensión</th>
+                  <th scope="col">Tipo MIME</th>
+                  <th scope="col" class="text-center">Cantidad de Archivos</th>
+                  <th scope="col" class="text-end">Espacio Ocupado</th>
+                  <th scope="col" class="pe-4 text-end" style="width: 140px">% del Total</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (item of filesByType(); track item.extension) {
+                  <tr>
+                    <td class="ps-4">
+                      <div class="d-flex align-items-center gap-2">
+                        <i class="bi fs-4" [class]="getFileIcon(item.extension)"></i>
+                        <span class="fw-semibold text-dark text-uppercase small">
+                          {{ item.extension.replace('.', '') }}
+                        </span>
+                      </div>
+                    </td>
+                    <td>
+                      <span class="badge bg-light text-secondary border font-monospace">
+                        {{ item.extension }}
+                      </span>
+                    </td>
+                    <td class="text-muted small">
+                      {{ item.mimeType }}
+                    </td>
+                    <td class="text-center">
+                      <span
+                        class="badge bg-primary-subtle text-primary-emphasis rounded-pill px-3 py-1 fw-bold"
+                      >
+                        {{ item.fileCount }}
+                      </span>
+                    </td>
+                    <td class="text-end fw-semibold text-dark">
+                      {{ formatBytes(item.totalSizeBytes) }}
+                    </td>
+                    <td class="pe-4 text-end">
+                      <div class="d-flex align-items-center justify-content-end gap-2">
+                        <div class="progress flex-grow-1" style="height: 6px; max-width: 70px">
+                          <div
+                            class="progress-bar bg-primary"
+                            role="progressbar"
+                            [style.width.%]="item.percentage"
+                            [attr.aria-valuenow]="item.percentage"
+                            aria-valuemin="0"
+                            aria-valuemax="100"
+                          ></div>
+                        </div>
+                        <span class="small fw-semibold text-secondary">{{ item.percentage }}%</span>
+                      </div>
+                    </td>
+                  </tr>
+                }
+              </tbody>
+              <tfoot class="table-light border-top">
+                <tr class="fw-bold small text-dark">
+                  <td colspan="3" class="ps-4 py-3">Total General</td>
+                  <td class="text-center">
+                    <span class="badge bg-dark rounded-pill px-3 py-1">
+                      {{ totalFilesCount() }} archivos
+                    </span>
+                  </td>
+                  <td class="text-end">{{ formatBytes(grandTotalSizeBytes()) }}</td>
+                  <td class="pe-4 text-end text-primary">100%</td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        }
+      </div>
+    </div>
+  }
+
+  <!-- REPORTE 2: ARCHIVOS ALMACENADOS DENTRO DE UN RANGO DE FECHAS -->
+  @if (activeSubReport() === 'by-date-range') {
+    <div class="card border rounded-3 overflow-hidden shadow-sm bg-white">
+      <div class="card-header bg-light border-bottom py-3 px-4">
+        <div class="d-flex flex-wrap align-items-center justify-content-between gap-3">
+          <div>
+            <h2 class="h6 fw-bold text-dark mb-1">
+              Archivos almacenados dentro de un rango de fechas
+            </h2>
+            <p class="text-muted small mb-0">
+              Consulta cronológica de archivos ingresados en el sistema en un intervalo temporal
+              específico.
+            </p>
+          </div>
+          <span class="badge bg-info-subtle text-info-emphasis rounded-pill px-3 py-2 small">
+            {{ filesByDateRange().length }} archivos encontrados
+          </span>
+        </div>
+
+        <!-- Barra de herramientas: Filtros de fecha de inicio y fin -->
+        <div class="row g-2 align-items-center mt-2 pt-2 border-top">
+          <div class="col-12 col-md-8 d-flex flex-wrap align-items-center gap-2">
+            <div class="d-flex align-items-center gap-1">
+              <label class="small text-muted mb-0">Desde:</label>
+              <input
+                type="date"
+                class="form-control form-control-sm w-auto"
+                [ngModel]="startDate()"
+                (ngModelChange)="startDate.set($event)"
+              />
+            </div>
+            <div class="d-flex align-items-center gap-1">
+              <label class="small text-muted mb-0">Hasta:</label>
+              <input
+                type="date"
+                class="form-control form-control-sm w-auto"
+                [ngModel]="endDate()"
+                (ngModelChange)="endDate.set($event)"
+              />
+            </div>
+            <button
+              type="button"
+              class="btn btn-sm btn-primary rounded-pill px-3 d-flex align-items-center gap-1"
+              (click)="applyDateFilter()"
+            >
+              <i class="bi bi-funnel"></i>
+              <span>Filtrar</span>
+            </button>
+            @if (startDate() || endDate()) {
+              <button
+                type="button"
+                class="btn btn-sm btn-outline-secondary rounded-pill px-2 d-flex align-items-center gap-1"
+                (click)="clearDateFilter()"
+                title="Limpiar fechas"
+              >
+                <i class="bi bi-x"></i>
+                <span>Limpiar</span>
+              </button>
+            }
+          </div>
+        </div>
+
+        <!-- Tarjetas de Resumen KPI cuando hay datos en el rango -->
+        @if (filesByDateRange().length > 0) {
+          <div class="row g-2 mt-2 pt-2 border-top">
+            <div class="col-12 col-sm-4">
+              <div class="d-flex align-items-center gap-2 p-2 bg-white rounded-2 border">
+                <div
+                  class="rounded-circle bg-info-subtle text-info-emphasis d-flex align-items-center justify-content-center"
+                  style="width: 34px; height: 34px"
+                >
+                  <i class="bi bi-file-earmark-check fs-6"></i>
+                </div>
+                <div>
+                  <div class="text-muted" style="font-size: 0.75rem">Archivos en el Periodo</div>
+                  <div class="fw-bold text-dark small mb-0">{{ filesByDateRange().length }}</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="col-12 col-sm-4">
+              <div class="d-flex align-items-center gap-2 p-2 bg-white rounded-2 border">
+                <div
+                  class="rounded-circle bg-success-subtle text-success d-flex align-items-center justify-content-center"
+                  style="width: 34px; height: 34px"
+                >
+                  <i class="bi bi-hdd-fill fs-6"></i>
+                </div>
+                <div>
+                  <div class="text-muted" style="font-size: 0.75rem">Espacio Total en Periodo</div>
+                  <div class="fw-bold text-dark small mb-0">
+                    {{ formatBytes(totalDateRangeSizeBytes()) }}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="col-12 col-sm-4">
+              <div class="d-flex align-items-center gap-2 p-2 bg-white rounded-2 border">
+                <div
+                  class="rounded-circle bg-primary-subtle text-primary d-flex align-items-center justify-content-center"
+                  style="width: 34px; height: 34px"
+                >
+                  <i class="bi bi-calendar3 fs-6"></i>
+                </div>
+                <div>
+                  <div class="text-muted" style="font-size: 0.75rem">Filtro Aplicado</div>
+                  <div class="fw-bold text-dark small mb-0 text-truncate">
+                    {{ startDate() || 'Inicio' }} &mdash; {{ endDate() || 'Actualidad' }}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Barra de Búsqueda y Selector de Registros por Página -->
+          <div class="row g-2 align-items-center mt-2 pt-2 border-top">
+            <div class="col-12 col-sm-6 col-md-5">
+              <div class="input-group input-group-sm">
+                <span class="input-group-text bg-white border-end-0 text-muted">
+                  <i class="bi bi-search"></i>
+                </span>
+                <input
+                  type="text"
+                  class="form-control border-start-0"
+                  placeholder="Buscar por archivo, propietario o ruta..."
+                  [ngModel]="dateRangeSearchTerm()"
+                  (ngModelChange)="onDateRangeSearch($event)"
+                />
+                @if (dateRangeSearchTerm()) {
+                  <button
+                    type="button"
+                    class="btn btn-outline-secondary border-start-0"
+                    (click)="onDateRangeSearch('')"
+                    title="Limpiar búsqueda"
+                  >
+                    <i class="bi bi-x"></i>
+                  </button>
+                }
+              </div>
+            </div>
+
+            <div
+              class="col-12 col-sm-6 col-md-7 d-flex justify-content-sm-end align-items-center gap-2"
+            >
+              <label class="small text-muted mb-0">Mostrar:</label>
+              <select
+                class="form-select form-select-sm w-auto"
+                [ngModel]="dateRangePageSize()"
+                (ngModelChange)="setDateRangePageSize($event)"
+              >
+                <option [value]="5">5 por pág.</option>
+                <option [value]="10">10 por pág.</option>
+                <option [value]="25">25 por pág.</option>
+              </select>
+            </div>
+          </div>
+        }
+      </div>
+
+      <div class="card-body p-0">
+        @if (currentIsLoading()) {
+          <div class="text-center py-5 text-muted">
+            <div class="spinner-border spinner-border-sm text-primary mb-2" role="status"></div>
+            <div class="small">Consultando reporte en tiempo real...</div>
+          </div>
+        } @else if (filesByDateRange().length === 0) {
+          <!-- Estado Vacío sin registros -->
+          <div class="text-center py-5 px-3">
+            <div
+              class="empty-icon-circle bg-light text-muted mx-auto mb-3 d-flex align-items-center justify-content-center rounded-circle"
+              style="width: 64px; height: 64px"
+            >
+              <i class="bi bi-calendar-x fs-2"></i>
+            </div>
+            <h3 class="h6 fw-semibold text-dark mb-1">No hay archivos en el rango seleccionado</h3>
+            <p class="text-muted small mx-auto mb-0" style="max-width: 460px">
+              Indica una fecha inicial y una fecha final para listar y contabilizar todos los
+              archivos almacenados o modificados en ese intervalo.
+            </p>
+          </div>
+        } @else if (filteredDateRangeFiles().length === 0) {
+          <!-- Estado Vacío por filtro de búsqueda -->
+          <div class="text-center py-5 px-3">
+            <i class="bi bi-search fs-2 text-muted d-block mb-2 opacity-50"></i>
+            <h3 class="h6 fw-semibold text-dark mb-1">Sin coincidencias</h3>
+            <p class="text-muted small mb-0">
+              No se encontraron archivos que coincidan con "{{ dateRangeSearchTerm() }}".
+            </p>
+          </div>
+        } @else {
+          <!-- Tabla Paginada de Resultados -->
+          <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+              <thead class="table-light text-secondary small text-uppercase">
+                <tr>
+                  <th scope="col" class="ps-4 py-3">Archivo</th>
+                  <th scope="col">Propietario</th>
+                  <th scope="col">Ubicación</th>
+                  <th scope="col">Tamaño</th>
+                  <th scope="col" class="pe-4 text-end">Fecha de Registro</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (file of paginatedDateRangeFiles(); track file.fileId) {
+                  <tr>
+                    <td class="ps-4">
+                      <div class="d-flex align-items-center gap-2">
+                        <i class="bi fs-5" [class]="getFileIcon(file.extension)"></i>
+                        <span
+                          class="fw-semibold text-dark small text-truncate"
+                          style="max-width: 220px"
+                        >
+                          {{ file.fileName }}
+                        </span>
+                      </div>
+                    </td>
+                    <td>
+                      <div class="d-flex align-items-center gap-2">
+                        <div
+                          class="avatar-circle bg-primary-subtle text-primary-emphasis fw-bold small rounded-circle d-flex align-items-center justify-content-center"
+                          style="width: 30px; height: 30px"
+                        >
+                          {{ getInitials(file.ownerName) }}
+                        </div>
+                        <span class="small text-dark">{{ file.ownerName }}</span>
+                      </div>
+                    </td>
+                    <td class="text-muted small">
+                      <i class="bi bi-folder2 text-secondary me-1"></i>
+                      <span>{{ file.folderPath || '/' }}</span>
+                    </td>
+                    <td class="fw-semibold text-dark small">
+                      {{ formatBytes(file.sizeBytes) }}
+                    </td>
+                    <td class="pe-4 text-end text-muted small">
+                      {{ formatDate(file.createdAt) }}
+                    </td>
+                  </tr>
+                }
+              </tbody>
+              <tfoot class="table-light border-top">
+                <tr class="fw-bold small text-dark">
+                  <td colspan="3" class="ps-4 py-3">Total en Periodo Consultado</td>
+                  <td>{{ formatBytes(totalDateRangeSizeBytes()) }}</td>
+                  <td class="pe-4 text-end text-primary">
+                    {{ filesByDateRange().length }} archivos
+                  </td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+
+          <!-- Pie de Tabla: Resumen y Controles de Paginación -->
+          <div
+            class="card-footer bg-white border-top py-3 px-4 d-flex flex-wrap align-items-center justify-content-between gap-3"
+          >
+            <div class="small text-muted">
+              Mostrando <strong>{{ dateRangeStartIndex() }}</strong> a
+              <strong>{{ dateRangeEndIndex() }}</strong> de
+              <strong>{{ filteredDateRangeFiles().length }}</strong> archivos
+              @if (dateRangeSearchTerm()) {
+                <span>(filtrados de {{ filesByDateRange().length }} en total)</span>
+              }
+            </div>
+
+            @if (totalDateRangePages() > 1) {
+              <nav aria-label="Navegación de páginas del reporte de fechas">
+                <ul class="pagination pagination-sm mb-0">
+                  <!-- Botón Anterior -->
+                  <li class="page-item" [class.disabled]="dateRangeCurrentPage() === 1">
+                    <button
+                      type="button"
+                      class="page-link"
+                      (click)="goToDateRangePage(dateRangeCurrentPage() - 1)"
+                      aria-label="Página anterior"
+                    >
+                      <i class="bi bi-chevron-left"></i>
+                    </button>
+                  </li>
+
+                  <!-- Números de Página -->
+                  @for (p of visibleDateRangePagesArray(); track p) {
+                    <li class="page-item" [class.active]="p === dateRangeCurrentPage()">
+                      <button type="button" class="page-link" (click)="goToDateRangePage(p)">
+                        {{ p }}
+                      </button>
+                    </li>
+                  }
+
+                  <!-- Botón Siguiente -->
+                  <li
+                    class="page-item"
+                    [class.disabled]="dateRangeCurrentPage() === totalDateRangePages()"
+                  >
+                    <button
+                      type="button"
+                      class="page-link"
+                      (click)="goToDateRangePage(dateRangeCurrentPage() + 1)"
+                      aria-label="Página siguiente"
+                    >
+                      <i class="bi bi-chevron-right"></i>
+                    </button>
+                  </li>
+                </ul>
+              </nav>
+            }
+          </div>
+        }
+      </div>
+    </div>
+  }
+
+  <!-- REPORTE 3: ARCHIVOS CON MAYOR CANTIDAD DE OPERACIONES REGISTRADAS -->
+  @if (activeSubReport() === 'by-operations') {
+    <div class="card border rounded-3 overflow-hidden shadow-sm bg-white">
+      <div class="card-header bg-light border-bottom py-3 px-4">
+        <div class="d-flex align-items-center justify-content-between">
+          <div>
+            <h2 class="h6 fw-bold text-dark mb-1">
+              Archivos con mayor cantidad de operaciones registradas
+            </h2>
+            <p class="text-muted small mb-0">
+              Ranking de documentos con el mayor volumen acumulado de eventos y operaciones en
+              auditoría.
+            </p>
+          </div>
+          <span class="badge bg-success-subtle text-success-emphasis rounded-pill px-3 py-2 small">
+            {{ filesByOperations().length }} archivos en ranking
+          </span>
+        </div>
+      </div>
+
+      <div class="card-body p-0">
+        @if (currentIsLoading()) {
+          <div class="text-center py-5 text-muted">
+            <div class="spinner-border spinner-border-sm text-primary mb-2" role="status"></div>
+            <div class="small">Consultando reporte en tiempo real...</div>
+          </div>
+        } @else if (filesByOperations().length === 0) {
+          <!-- Estado Vacío sin registros -->
+          <div class="text-center py-5 px-3">
+            <div
+              class="empty-icon-circle bg-light text-muted mx-auto mb-3 d-flex align-items-center justify-content-center rounded-circle"
+              style="width: 64px; height: 64px"
+            >
+              <i class="bi bi-activity fs-2"></i>
+            </div>
+            <h3 class="h6 fw-semibold text-dark mb-1">
+              No hay registros de operaciones en archivos
+            </h3>
+            <p class="text-muted small mx-auto mb-0" style="max-width: 460px">
+              Actualmente no se registran actividades de auditoría asociadas a archivos. Cuando se
+              ejecuten acciones de creación, actualización, descarga o compartición, aquí se
+              listarán los documentos con mayor frecuencia de uso.
+            </p>
+          </div>
+        } @else {
+          <!-- Tabla de Resultados -->
+          <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+              <thead class="table-light text-secondary small text-uppercase">
+                <tr>
+                  <th scope="col" class="ps-4 py-3" style="width: 70px">Posición</th>
+                  <th scope="col">Archivo</th>
+                  <th scope="col">Propietario</th>
+                  <th scope="col" class="text-center">Operaciones Registradas</th>
+                  <th scope="col">Última Operación</th>
+                  <th scope="col" class="pe-4 text-end">Fecha de Última Acción</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (item of filesByOperations(); track item.fileId; let i = $index) {
+                  <tr>
+                    <td class="ps-4">
+                      @switch (i) {
+                        @case (0) {
+                          <span class="badge bg-warning text-dark rounded-pill px-2 py-1 fw-bold">
+                            #1
+                          </span>
+                        }
+                        @case (1) {
+                          <span
+                            class="badge bg-secondary-subtle text-dark rounded-pill px-2 py-1 fw-bold"
+                          >
+                            #2
+                          </span>
+                        }
+                        @case (2) {
+                          <span
+                            class="badge bg-info-subtle text-info-emphasis rounded-pill px-2 py-1 fw-bold"
+                          >
+                            #3
+                          </span>
+                        }
+                        @default {
+                          <span
+                            class="badge bg-light text-secondary rounded-pill px-2 py-1 fw-semibold"
+                          >
+                            #{{ i + 1 }}
+                          </span>
+                        }
+                      }
+                    </td>
+                    <td>
+                      <div class="d-flex align-items-center gap-2">
+                        <i class="bi fs-5" [class]="getFileIcon(item.extension)"></i>
+                        <span
+                          class="fw-semibold text-dark small text-truncate"
+                          style="max-width: 220px"
+                        >
+                          {{ item.fileName }}
+                        </span>
+                      </div>
+                    </td>
+                    <td>
+                      <div class="d-flex align-items-center gap-2">
+                        <div
+                          class="avatar-circle bg-primary-subtle text-primary-emphasis fw-bold small rounded-circle d-flex align-items-center justify-content-center"
+                          style="width: 30px; height: 30px"
+                        >
+                          {{ getInitials(item.ownerName) }}
+                        </div>
+                        <span class="small text-dark">{{ item.ownerName }}</span>
+                      </div>
+                    </td>
+                    <td class="text-center">
+                      <span
+                        class="badge bg-success-subtle text-success-emphasis rounded-pill px-3 py-1 fw-bold"
+                      >
+                        {{ item.operationsCount }}
+                      </span>
+                    </td>
+                    <td>
+                      <span class="badge bg-light text-secondary border">
+                        {{ item.lastOperationType }}
+                      </span>
+                    </td>
+                    <td class="pe-4 text-end text-muted small">
+                      {{ formatDate(item.lastOperationAt) }}
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        }
+      </div>
+    </div>
+  }
+</div>

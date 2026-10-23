@@ -1,0 +1,12 @@
+.storage-reports-view {
+  width: 100%;
+}
+
+.avatar-circle {
+  font-size: 0.85rem;
+}
+
+.empty-icon-circle {
+  color: #94a3b8 !important;
+  background-color: #f1f5f9 !important;
+}

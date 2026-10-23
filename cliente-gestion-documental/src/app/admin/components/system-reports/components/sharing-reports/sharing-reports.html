@@ -1,0 +1,861 @@
+<div class="sharing-reports-view">
+  <!-- Barra de Selección de Subreporte y Botón Actualizar -->
+  <div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-3">
+    <div class="d-flex flex-wrap align-items-center gap-2">
+      <button
+        type="button"
+        class="btn btn-sm rounded-pill px-3 fw-medium"
+        [class.btn-primary]="activeSubReport() === 'most-shared-files'"
+        [class.btn-outline-secondary]="activeSubReport() !== 'most-shared-files'"
+        (click)="switchSubReport('most-shared-files')"
+      >
+        Archivos compartidos con mayor cantidad de usuarios
+      </button>
+
+      <button
+        type="button"
+        class="btn btn-sm rounded-pill px-3 fw-medium"
+        [class.btn-primary]="activeSubReport() === 'shared-by-user'"
+        [class.btn-outline-secondary]="activeSubReport() !== 'shared-by-user'"
+        (click)="switchSubReport('shared-by-user')"
+      >
+        Recursos compartidos por un usuario seleccionado
+      </button>
+
+      <button
+        type="button"
+        class="btn btn-sm rounded-pill px-3 fw-medium"
+        [class.btn-primary]="activeSubReport() === 'received-by-user'"
+        [class.btn-outline-secondary]="activeSubReport() !== 'received-by-user'"
+        (click)="switchSubReport('received-by-user')"
+      >
+        Recursos recibidos por un usuario seleccionado
+      </button>
+    </div>
+
+    <div class="d-flex align-items-center gap-3">
+      @if (currentLastUpdatedAt()) {
+        <div class="text-muted small">
+          Última consulta: {{ formatDate(currentLastUpdatedAt()?.toISOString()) }}
+        </div>
+      }
+
+      <button
+        type="button"
+        class="btn btn-outline-primary btn-sm rounded-pill px-3 d-flex align-items-center gap-1"
+        [disabled]="currentIsLoading()"
+        (click)="refreshActiveReport()"
+        title="Actualizar datos del reporte activo"
+      >
+        <i
+          class="bi bi-arrow-clockwise"
+          [class.spinner-border]="currentIsLoading()"
+          [class.spinner-border-sm]="currentIsLoading()"
+        ></i>
+        <span>Actualizar</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- REPORTE 1: ARCHIVOS COMPARTIDOS CON MAYOR CANTIDAD DE USUARIOS -->
+  @if (activeSubReport() === 'most-shared-files') {
+    <div class="card border rounded-3 overflow-hidden shadow-sm bg-white">
+      <div class="card-header bg-light border-bottom py-3 px-4">
+        <div class="d-flex flex-wrap align-items-center justify-content-between gap-3">
+          <div>
+            <h2 class="h6 fw-bold text-dark mb-1">
+              Archivos compartidos con mayor cantidad de usuarios
+            </h2>
+            <p class="text-muted small mb-0">
+              Ranking de documentos que registran la mayor cantidad de colaboradores y permisos
+              compartidos en el sistema.
+            </p>
+          </div>
+          <span class="badge bg-primary-subtle text-primary-emphasis rounded-pill px-3 py-2 small">
+            {{ mostSharedFiles().length }} archivos en ranking
+          </span>
+        </div>
+
+        <!-- Barra de herramientas: Búsqueda y selector de registros por página -->
+        @if (mostSharedFiles().length > 0) {
+          <div class="row g-2 align-items-center mt-2 pt-2 border-top">
+            <div class="col-12 col-sm-6 col-md-5">
+              <div class="input-group input-group-sm">
+                <span class="input-group-text bg-white border-end-0 text-muted">
+                  <i class="bi bi-search"></i>
+                </span>
+                <input
+                  type="text"
+                  class="form-control border-start-0"
+                  placeholder="Filtrar por archivo, propietario o formato..."
+                  [ngModel]="mostSharedSearchTerm()"
+                  (ngModelChange)="onMostSharedSearch($event)"
+                />
+                @if (mostSharedSearchTerm()) {
+                  <button
+                    type="button"
+                    class="btn btn-outline-secondary border-start-0"
+                    (click)="onMostSharedSearch('')"
+                    title="Limpiar búsqueda"
+                  >
+                    <i class="bi bi-x"></i>
+                  </button>
+                }
+              </div>
+            </div>
+
+            <div
+              class="col-12 col-sm-6 col-md-7 d-flex justify-content-sm-end align-items-center gap-2"
+            >
+              <label class="small text-muted mb-0">Mostrar:</label>
+              <select
+                class="form-select form-select-sm w-auto"
+                [ngModel]="mostSharedPageSize()"
+                (ngModelChange)="setMostSharedPageSize($event)"
+              >
+                <option [value]="5">5 por pág.</option>
+                <option [value]="10">10 por pág.</option>
+                <option [value]="25">25 por pág.</option>
+              </select>
+            </div>
+          </div>
+        }
+      </div>
+
+      <div class="card-body p-0">
+        @if (currentIsLoading()) {
+          <div class="text-center py-5 text-muted">
+            <div class="spinner-border spinner-border-sm text-primary mb-2" role="status"></div>
+            <div class="small">Consultando reporte en tiempo real...</div>
+          </div>
+        } @else if (mostSharedFiles().length === 0) {
+          <!-- Estado Vacío sin registros globales -->
+          <div class="text-center py-5 px-3">
+            <div
+              class="empty-icon-circle bg-light text-muted mx-auto mb-3 d-flex align-items-center justify-content-center rounded-circle"
+              style="width: 64px; height: 64px"
+            >
+              <i class="bi bi-diagram-3 fs-2"></i>
+            </div>
+            <h3 class="h6 fw-semibold text-dark mb-1">No hay archivos compartidos registrados</h3>
+            <p class="text-muted small mx-auto mb-0" style="max-width: 460px">
+              Actualmente ningún archivo posee usuarios colaboradores asignados en el sistema.
+              Cuando los propietarios otorguen permisos de acceso, aquí se mostrarán los más
+              compartidos.
+            </p>
+          </div>
+        } @else if (filteredMostSharedFiles().length === 0) {
+          <!-- Estado Vacío por búsqueda -->
+          <div class="text-center py-5 px-3">
+            <i class="bi bi-search fs-2 text-muted d-block mb-2 opacity-50"></i>
+            <h3 class="h6 fw-semibold text-dark mb-1">Sin coincidencias</h3>
+            <p class="text-muted small mb-0">
+              No se encontraron archivos que coincidan con "{{ mostSharedSearchTerm() }}".
+            </p>
+          </div>
+        } @else {
+          <!-- Tabla Paginada de Resultados -->
+          <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+              <thead class="table-light text-secondary small text-uppercase">
+                <tr>
+                  <th scope="col" class="ps-4 py-3" style="width: 70px">Posición</th>
+                  <th scope="col">Archivo</th>
+                  <th scope="col">Propietario</th>
+                  <th scope="col">Tamaño</th>
+                  <th scope="col" class="text-center">Colaboradores</th>
+                  <th scope="col" class="pe-4 text-end">Última Compartición</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (item of paginatedMostSharedFiles(); track item.fileId; let i = $index) {
+                  <tr>
+                    <td class="ps-4">
+                      @switch (i) {
+                        @case (0) {
+                          <span class="badge bg-warning text-dark rounded-pill px-2 py-1 fw-bold">
+                            #1
+                          </span>
+                        }
+                        @case (1) {
+                          <span
+                            class="badge bg-secondary-subtle text-dark rounded-pill px-2 py-1 fw-bold"
+                          >
+                            #2
+                          </span>
+                        }
+                        @case (2) {
+                          <span
+                            class="badge bg-info-subtle text-info-emphasis rounded-pill px-2 py-1 fw-bold"
+                          >
+                            #3
+                          </span>
+                        }
+                        @default {
+                          <span
+                            class="badge bg-light text-secondary rounded-pill px-2 py-1 fw-semibold"
+                          >
+                            #{{ (mostSharedCurrentPage() - 1) * mostSharedPageSize() + i + 1 }}
+                          </span>
+                        }
+                      }
+                    </td>
+                    <td>
+                      <div class="d-flex align-items-center gap-2">                        
+                        <div>
+                          <div
+                            class="fw-semibold text-dark small text-truncate"
+                            style="max-width: 220px"
+                          >
+                            {{ item.fileName }}
+                          </div>
+                          @if (item.folderPath) {
+                            <div class="text-muted" style="font-size: 0.75rem">
+                              {{ item.folderPath }}
+                            </div>
+                          }
+                        </div>
+                      </div>
+                    </td>
+                    <td>
+                      <div class="d-flex align-items-center gap-2">
+                        <div
+                          class="avatar-circle bg-primary-subtle text-primary-emphasis fw-bold small rounded-circle d-flex align-items-center justify-content-center"
+                          style="width: 30px; height: 30px"
+                        >
+                          {{ getInitials(item.ownerName) }}
+                        </div>
+                        <div>
+                          <div class="small fw-semibold text-dark">{{ item.ownerName }}</div>
+                          <div class="text-muted" style="font-size: 0.75rem">
+                            {{ item.ownerEmail }}
+                          </div>
+                        </div>
+                      </div>
+                    </td>
+                    <td class="fw-semibold text-dark small">
+                      {{ formatBytes(item.sizeBytes) }}
+                    </td>
+                    <td class="text-center">
+                      <span
+                        class="badge bg-primary-subtle text-primary-emphasis rounded-pill px-3 py-1 fw-bold"
+                      >
+                        {{ item.collaboratorsCount }} usuarios
+                      </span>
+                    </td>
+                    <td class="pe-4 text-end text-muted small">
+                      {{ formatDate(item.lastSharedAt) }}
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+
+          <!-- Pie de Tabla: Resumen y Paginación -->
+          <div
+            class="card-footer bg-white border-top py-3 px-4 d-flex flex-wrap align-items-center justify-content-between gap-3"
+          >
+            <div class="small text-muted">
+              Mostrando <strong>{{ mostSharedStartIndex() }}</strong> a
+              <strong>{{ mostSharedEndIndex() }}</strong> de
+              <strong>{{ filteredMostSharedFiles().length }}</strong> archivos
+              @if (mostSharedSearchTerm()) {
+                <span>(filtrados de {{ mostSharedFiles().length }} en total)</span>
+              }
+            </div>
+
+            @if (totalMostSharedPages() > 1) {
+              <nav aria-label="Navegación de páginas de archivos más compartidos">
+                <ul class="pagination pagination-sm mb-0">
+                  <li class="page-item" [class.disabled]="mostSharedCurrentPage() === 1">
+                    <button
+                      type="button"
+                      class="page-link"
+                      (click)="goToMostSharedPage(mostSharedCurrentPage() - 1)"
+                      aria-label="Página anterior"
+                    >
+                      <i class="bi bi-chevron-left"></i>
+                    </button>
+                  </li>
+
+                  @for (p of visibleMostSharedPagesArray(); track p) {
+                    <li class="page-item" [class.active]="p === mostSharedCurrentPage()">
+                      <button type="button" class="page-link" (click)="goToMostSharedPage(p)">
+                        {{ p }}
+                      </button>
+                    </li>
+                  }
+
+                  <li
+                    class="page-item"
+                    [class.disabled]="mostSharedCurrentPage() === totalMostSharedPages()"
+                  >
+                    <button
+                      type="button"
+                      class="page-link"
+                      (click)="goToMostSharedPage(mostSharedCurrentPage() + 1)"
+                      aria-label="Página siguiente"
+                    >
+                      <i class="bi bi-chevron-right"></i>
+                    </button>
+                  </li>
+                </ul>
+              </nav>
+            }
+          </div>
+        }
+      </div>
+    </div>
+  }
+
+  <!-- REPORTE 2: RECURSOS COMPARTIDOS POR UN USUARIO SELECCIONADO -->
+  @if (activeSubReport() === 'shared-by-user') {
+    <div class="card border rounded-3 overflow-hidden shadow-sm bg-white">
+      <div class="card-header bg-light border-bottom py-3 px-4">
+        <div class="d-flex flex-wrap align-items-center justify-content-between gap-3">
+          <div>
+            <h2 class="h6 fw-bold text-dark mb-1">
+              Recursos compartidos por un usuario seleccionado
+            </h2>
+            <p class="text-muted small mb-0">
+              Listado detallado de carpetas y archivos compartidos por un propietario hacia otros
+              colaboradores.
+            </p>
+          </div>
+          <div class="d-flex flex-wrap align-items-center gap-2">
+            <span class="badge bg-info-subtle text-info-emphasis rounded-pill px-3 py-2 small">
+              {{ resourcesSharedByUser().length }} recursos compartidos
+            </span>
+            @if (resourcesSharedByUser().length > 0) {
+              <span
+                class="badge bg-primary-subtle text-primary-emphasis rounded-pill px-2 py-1 small"
+              >
+                {{ sharedByUserFilesCount() }} archivos
+              </span>
+              <span
+                class="badge bg-warning-subtle text-warning-emphasis rounded-pill px-2 py-1 small"
+              >
+                {{ sharedByUserFoldersCount() }} carpetas
+              </span>
+            }
+          </div>
+        </div>
+
+        <!-- Selector de Usuario Propietario -->
+        <div class="row g-2 align-items-center mt-2 pt-2 border-top">
+          <div class="col-12 col-md-6 d-flex align-items-center gap-2">
+            <label class="small text-muted mb-0 fw-medium text-nowrap">
+              <i class="bi bi-person-fill text-primary me-1"></i>Usuario Propietario:
+            </label>
+            <select
+              class="form-select form-select-sm"
+              [ngModel]="selectedUserId()"
+              (ngModelChange)="onUserSelect($event)"
+            >
+              <option value="">-- Seleccionar un usuario --</option>
+              @for (user of availableUsers(); track user.userId) {
+                <option [value]="user.userId">{{ user.userName }} ({{ user.userEmail }})</option>
+              }
+            </select>
+          </div>
+
+          <!-- Filtro rápido y selector de registros por página -->
+          @if (selectedUserId() && resourcesSharedByUser().length > 0) {
+            <div
+              class="col-12 col-md-6 d-flex flex-wrap align-items-center justify-content-md-end gap-2 mt-2 mt-md-0"
+            >
+              <div class="input-group input-group-sm w-auto">
+                <span class="input-group-text bg-white border-end-0 text-muted">
+                  <i class="bi bi-search"></i>
+                </span>
+                <input
+                  type="text"
+                  class="form-control border-start-0"
+                  placeholder="Filtrar recursos..."
+                  [ngModel]="sharedByUserSearchTerm()"
+                  (ngModelChange)="onSharedByUserSearch($event)"
+                />
+                @if (sharedByUserSearchTerm()) {
+                  <button
+                    type="button"
+                    class="btn btn-outline-secondary border-start-0"
+                    (click)="onSharedByUserSearch('')"
+                    title="Limpiar búsqueda"
+                  >
+                    <i class="bi bi-x"></i>
+                  </button>
+                }
+              </div>
+
+              <select
+                class="form-select form-select-sm w-auto"
+                [ngModel]="sharedByUserPageSize()"
+                (ngModelChange)="setSharedByUserPageSize($event)"
+              >
+                <option [value]="5">5 por pág.</option>
+                <option [value]="10">10 por pág.</option>
+                <option [value]="25">25 por pág.</option>
+              </select>
+            </div>
+          }
+        </div>
+      </div>
+
+      <div class="card-body p-0">
+        @if (currentIsLoading()) {
+          <div class="text-center py-5 text-muted">
+            <div class="spinner-border spinner-border-sm text-primary mb-2" role="status"></div>
+            <div class="small">Consultando recursos compartidos...</div>
+          </div>
+        } @else if (!selectedUserId()) {
+          <!-- Estado Inicial sin usuario seleccionado -->
+          <div class="text-center py-5 px-3">
+            <div
+              class="empty-icon-circle bg-light text-muted mx-auto mb-3 d-flex align-items-center justify-content-center rounded-circle"
+              style="width: 64px; height: 64px"
+            >
+              <i class="bi bi-person-check fs-2"></i>
+            </div>
+            <h3 class="h6 fw-semibold text-dark mb-1">Selecciona un usuario propietario</h3>
+            <p class="text-muted small mx-auto mb-0" style="max-width: 460px">
+              Elige un usuario del selector superior para auditar y consultar las carpetas y
+              archivos que ha compartido con otros colaboradores dentro del sistema.
+            </p>
+          </div>
+        } @else if (resourcesSharedByUser().length === 0) {
+          <!-- Estado Vacío sin recursos -->
+          <div class="text-center py-5 px-3">
+            <div
+              class="empty-icon-circle bg-light text-muted mx-auto mb-3 d-flex align-items-center justify-content-center rounded-circle"
+              style="width: 64px; height: 64px"
+            >
+              <i class="bi bi-folder-x fs-2"></i>
+            </div>
+            <h3 class="h6 fw-semibold text-dark mb-1">Sin recursos compartidos por este usuario</h3>
+            <p class="text-muted small mx-auto mb-0" style="max-width: 460px">
+              El usuario seleccionado no cuenta con carpetas ni archivos compartidos activamente.
+            </p>
+          </div>
+        } @else if (filteredResourcesSharedByUser().length === 0) {
+          <!-- Estado Vacío por búsqueda -->
+          <div class="text-center py-5 px-3">
+            <i class="bi bi-search fs-2 text-muted d-block mb-2 opacity-50"></i>
+            <h3 class="h6 fw-semibold text-dark mb-1">Sin coincidencias</h3>
+            <p class="text-muted small mb-0">
+              No se encontraron recursos que coincidan con "{{ sharedByUserSearchTerm() }}".
+            </p>
+          </div>
+        } @else {
+          <!-- Tabla Paginada de Resultados -->
+          <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+              <thead class="table-light text-secondary small text-uppercase">
+                <tr>
+                  <th scope="col" class="ps-4 py-3">Recurso</th>
+                  <th scope="col">Tipo</th>
+                  <th scope="col">Ubicación / Ruta</th>
+                  <th scope="col">Tamaño</th>
+                  <th scope="col" class="text-center">Colaboradores</th>
+                  <th scope="col">Permisos Concedidos</th>
+                  <th scope="col" class="pe-4 text-end">Fecha Compartido</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (item of paginatedResourcesSharedByUser(); track item.resourceId) {
+                  <tr>
+                    <td class="ps-4">
+                      <div class="d-flex align-items-center gap-2">
+                        <span
+                          class="fw-semibold text-dark small text-truncate"
+                          style="max-width: 200px"
+                        >
+                          {{ item.resourceName }}
+                        </span>
+                      </div>
+                    </td>
+                    <td>
+                      <span
+                        class="badge rounded-pill small"
+                        [class.bg-warning-subtle]="item.resourceType === 'folder'"
+                        [class.text-warning-emphasis]="item.resourceType === 'folder'"
+                        [class.bg-primary-subtle]="item.resourceType === 'file'"
+                        [class.text-primary-emphasis]="item.resourceType === 'file'"
+                      >
+                        {{ item.resourceType === 'folder' ? 'Carpeta' : 'Archivo' }}
+                      </span>
+                    </td>
+                    <td class="text-muted small">
+                      <span>{{ item.folderPath || '/' }}</span>
+                    </td>
+                    <td class="small text-dark fw-semibold">
+                      {{ item.resourceType === 'file' ? formatBytes(item.sizeBytes) : '-' }}
+                    </td>
+                    <td class="text-center">
+                      <span
+                        class="badge bg-info-subtle text-info-emphasis rounded-pill px-3 py-1 fw-bold"
+                      >
+                        {{ item.collaboratorsCount }}
+                      </span>
+                    </td>
+                    <td>
+                      <div class="d-flex flex-wrap gap-1">
+                        @for (collab of item.collaborators.slice(0, 3); track collab.userId) {
+                          <span
+                            class="badge rounded-pill small"
+                            [class]="getPermissionBadgeClass(collab.permission)"
+                            [title]="
+                              collab.userName + ' (' + getPermissionLabel(collab.permission) + ')'
+                            "
+                          >
+                            {{ collab.userName }} ({{ getPermissionLabel(collab.permission) }})
+                          </span>
+                        }
+                        @if (item.collaborators.length > 3) {
+                          <span class="badge bg-light text-secondary rounded-pill small">
+                            +{{ item.collaborators.length - 3 }} más
+                          </span>
+                        }
+                      </div>
+                    </td>
+                    <td class="pe-4 text-end text-muted small">
+                      {{ formatDate(item.sharedAt) }}
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+
+          <!-- Pie de Tabla: Resumen y Paginación -->
+          <div
+            class="card-footer bg-white border-top py-3 px-4 d-flex flex-wrap align-items-center justify-content-between gap-3"
+          >
+            <div class="small text-muted">
+              Mostrando <strong>{{ sharedByUserStartIndex() }}</strong> a
+              <strong>{{ sharedByUserEndIndex() }}</strong> de
+              <strong>{{ filteredResourcesSharedByUser().length }}</strong> recursos
+              @if (sharedByUserSearchTerm()) {
+                <span>(filtrados de {{ resourcesSharedByUser().length }} en total)</span>
+              }
+            </div>
+
+            @if (totalSharedByUserPages() > 1) {
+              <nav aria-label="Navegación de páginas de recursos compartidos">
+                <ul class="pagination pagination-sm mb-0">
+                  <li class="page-item" [class.disabled]="sharedByUserCurrentPage() === 1">
+                    <button
+                      type="button"
+                      class="page-link"
+                      (click)="goToSharedByUserPage(sharedByUserCurrentPage() - 1)"
+                      aria-label="Página anterior"
+                    >
+                      <i class="bi bi-chevron-left"></i>
+                    </button>
+                  </li>
+
+                  @for (p of visibleSharedByUserPagesArray(); track p) {
+                    <li class="page-item" [class.active]="p === sharedByUserCurrentPage()">
+                      <button type="button" class="page-link" (click)="goToSharedByUserPage(p)">
+                        {{ p }}
+                      </button>
+                    </li>
+                  }
+
+                  <li
+                    class="page-item"
+                    [class.disabled]="sharedByUserCurrentPage() === totalSharedByUserPages()"
+                  >
+                    <button
+                      type="button"
+                      class="page-link"
+                      (click)="goToSharedByUserPage(sharedByUserCurrentPage() + 1)"
+                      aria-label="Página siguiente"
+                    >
+                      <i class="bi bi-chevron-right"></i>
+                    </button>
+                  </li>
+                </ul>
+              </nav>
+            }
+          </div>
+        }
+      </div>
+    </div>
+  }
+
+  <!-- REPORTE 3: RECURSOS RECIBIDOS POR UN USUARIO SELECCIONADO -->
+  @if (activeSubReport() === 'received-by-user') {
+    <div class="card border rounded-3 overflow-hidden shadow-sm bg-white">
+      <div class="card-header bg-light border-bottom py-3 px-4">
+        <div class="d-flex flex-wrap align-items-center justify-content-between gap-3">
+          <div>
+            <h2 class="h6 fw-bold text-dark mb-1">
+              Recursos recibidos por un usuario seleccionado
+            </h2>
+            <p class="text-muted small mb-0">
+              Listado de carpetas y archivos en los que el usuario figura como colaborador invitado
+              con permisos asignados.
+            </p>
+          </div>
+          <div class="d-flex flex-wrap align-items-center gap-2">
+            <span
+              class="badge bg-success-subtle text-success-emphasis rounded-pill px-3 py-2 small"
+            >
+              {{ resourcesReceivedByUser().length }} recursos recibidos
+            </span>
+            @if (resourcesReceivedByUser().length > 0) {
+              <span
+                class="badge bg-primary-subtle text-primary-emphasis rounded-pill px-2 py-1 small"
+              >
+                {{ receivedByUserFilesCount() }} archivos
+              </span>
+              <span
+                class="badge bg-warning-subtle text-warning-emphasis rounded-pill px-2 py-1 small"
+              >
+                {{ receivedByUserFoldersCount() }} carpetas
+              </span>
+            }
+          </div>
+        </div>
+
+        <!-- Selector de Usuario Receptor -->
+        <div class="row g-2 align-items-center mt-2 pt-2 border-top">
+          <div class="col-12 col-md-6 d-flex align-items-center gap-2">
+            <label class="small text-muted mb-0 fw-medium text-nowrap">
+              <i class="bi bi-person-badge-fill text-success me-1"></i>Usuario Receptor:
+            </label>
+            <select
+              class="form-select form-select-sm"
+              [ngModel]="selectedUserId()"
+              (ngModelChange)="onUserSelect($event)"
+            >
+              <option value="">-- Seleccionar un usuario --</option>
+              @for (user of availableUsers(); track user.userId) {
+                <option [value]="user.userId">{{ user.userName }} ({{ user.userEmail }})</option>
+              }
+            </select>
+          </div>
+
+          <!-- Filtro rápido y selector de registros por página -->
+          @if (selectedUserId() && resourcesReceivedByUser().length > 0) {
+            <div
+              class="col-12 col-md-6 d-flex flex-wrap align-items-center justify-content-md-end gap-2 mt-2 mt-md-0"
+            >
+              <div class="input-group input-group-sm w-auto">
+                <span class="input-group-text bg-white border-end-0 text-muted">
+                  <i class="bi bi-search"></i>
+                </span>
+                <input
+                  type="text"
+                  class="form-control border-start-0"
+                  placeholder="Filtrar recursos recibidos..."
+                  [ngModel]="receivedByUserSearchTerm()"
+                  (ngModelChange)="onReceivedByUserSearch($event)"
+                />
+                @if (receivedByUserSearchTerm()) {
+                  <button
+                    type="button"
+                    class="btn btn-outline-secondary border-start-0"
+                    (click)="onReceivedByUserSearch('')"
+                    title="Limpiar búsqueda"
+                  >
+                    <i class="bi bi-x"></i>
+                  </button>
+                }
+              </div>
+
+              <select
+                class="form-select form-select-sm w-auto"
+                [ngModel]="receivedByUserPageSize()"
+                (ngModelChange)="setReceivedByUserPageSize($event)"
+              >
+                <option [value]="5">5 por pág.</option>
+                <option [value]="10">10 por pág.</option>
+                <option [value]="25">25 por pág.</option>
+              </select>
+            </div>
+          }
+        </div>
+      </div>
+
+      <div class="card-body p-0">
+        @if (currentIsLoading()) {
+          <div class="text-center py-5 text-muted">
+            <div class="spinner-border spinner-border-sm text-primary mb-2" role="status"></div>
+            <div class="small">Consultando recursos recibidos...</div>
+          </div>
+        } @else if (!selectedUserId()) {
+          <!-- Estado Inicial sin usuario seleccionado -->
+          <div class="text-center py-5 px-3">
+            <div
+              class="empty-icon-circle bg-light text-muted mx-auto mb-3 d-flex align-items-center justify-content-center rounded-circle"
+              style="width: 64px; height: 64px"
+            >
+              <i class="bi bi-person-badge fs-2"></i>
+            </div>
+            <h3 class="h6 fw-semibold text-dark mb-1">Selecciona un usuario receptor</h3>
+            <p class="text-muted small mx-auto mb-0" style="max-width: 460px">
+              Elige un usuario del selector superior para consultar las carpetas y archivos que
+              otros usuarios de la organización han compartido con él.
+            </p>
+          </div>
+        } @else if (resourcesReceivedByUser().length === 0) {
+          <!-- Estado Vacío sin recursos -->
+          <div class="text-center py-5 px-3">
+            <div
+              class="empty-icon-circle bg-light text-muted mx-auto mb-3 d-flex align-items-center justify-content-center rounded-circle"
+              style="width: 64px; height: 64px"
+            >
+              <i class="bi bi-inbox fs-2"></i>
+            </div>
+            <h3 class="h6 fw-semibold text-dark mb-1">Sin recursos recibidos por este usuario</h3>
+            <p class="text-muted small mx-auto mb-0" style="max-width: 460px">
+              El usuario seleccionado no figura actualmente como colaborador invitado en ningún
+              recurso.
+            </p>
+          </div>
+        } @else if (filteredResourcesReceivedByUser().length === 0) {
+          <!-- Estado Vacío por búsqueda -->
+          <div class="text-center py-5 px-3">
+            <i class="bi bi-search fs-2 text-muted d-block mb-2 opacity-50"></i>
+            <h3 class="h6 fw-semibold text-dark mb-1">Sin coincidencias</h3>
+            <p class="text-muted small mb-0">
+              No se encontraron recursos que coincidan con "{{ receivedByUserSearchTerm() }}".
+            </p>
+          </div>
+        } @else {
+          <!-- Tabla Paginada de Resultados -->
+          <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+              <thead class="table-light text-secondary small text-uppercase">
+                <tr>
+                  <th scope="col" class="ps-4 py-3">Recurso</th>
+                  <th scope="col">Tipo</th>
+                  <th scope="col">Propietario Original</th>
+                  <th scope="col">Permiso Otorgado</th>
+                  <th scope="col">Ubicación / Ruta</th>
+                  <th scope="col">Tamaño</th>
+                  <th scope="col" class="pe-4 text-end">Fecha Recibido</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (item of paginatedResourcesReceivedByUser(); track item.resourceId) {
+                  <tr>
+                    <td class="ps-4">
+                      <div class="d-flex align-items-center gap-2">
+                        <span
+                          class="fw-semibold text-dark small text-truncate"
+                          style="max-width: 200px"
+                        >
+                          {{ item.resourceName }}
+                        </span>
+                      </div>
+                    </td>
+                    <td>
+                      <span
+                        class="badge rounded-pill small"
+                        [class.bg-warning-subtle]="item.resourceType === 'folder'"
+                        [class.text-warning-emphasis]="item.resourceType === 'folder'"
+                        [class.bg-primary-subtle]="item.resourceType === 'file'"
+                        [class.text-primary-emphasis]="item.resourceType === 'file'"
+                      >
+                        {{ item.resourceType === 'folder' ? 'Carpeta' : 'Archivo' }}
+                      </span>
+                    </td>
+                    <td>
+                      <div class="d-flex align-items-center gap-2">
+                        <div
+                          class="avatar-circle bg-primary-subtle text-primary-emphasis fw-bold small rounded-circle d-flex align-items-center justify-content-center"
+                          style="width: 30px; height: 30px"
+                        >
+                          {{ getInitials(item.ownerName) }}
+                        </div>
+                        <div>
+                          <div class="small fw-semibold text-dark">{{ item.ownerName }}</div>
+                          <div class="text-muted" style="font-size: 0.75rem">
+                            {{ item.ownerEmail }}
+                          </div>
+                        </div>
+                      </div>
+                    </td>
+                    <td>
+                      <span
+                        class="badge rounded-pill small fw-semibold"
+                        [class]="getPermissionBadgeClass(item.permission)"
+                      >
+                        {{ getPermissionLabel(item.permission) }}
+                      </span>
+                    </td>
+                    <td class="text-muted small">
+                      <span>{{ item.folderPath || '/' }}</span>
+                    </td>
+                    <td class="small text-dark fw-semibold">
+                      {{ item.resourceType === 'file' ? formatBytes(item.sizeBytes) : '-' }}
+                    </td>
+                    <td class="pe-4 text-end text-muted small">
+                      {{ formatDate(item.receivedAt) }}
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+
+          <!-- Pie de Tabla: Resumen y Paginación -->
+          <div
+            class="card-footer bg-white border-top py-3 px-4 d-flex flex-wrap align-items-center justify-content-between gap-3"
+          >
+            <div class="small text-muted">
+              Mostrando <strong>{{ receivedByUserStartIndex() }}</strong> a
+              <strong>{{ receivedByUserEndIndex() }}</strong> de
+              <strong>{{ filteredResourcesReceivedByUser().length }}</strong> recursos
+              @if (receivedByUserSearchTerm()) {
+                <span>(filtrados de {{ resourcesReceivedByUser().length }} en total)</span>
+              }
+            </div>
+
+            @if (totalReceivedByUserPages() > 1) {
+              <nav aria-label="Navegación de páginas de recursos recibidos">
+                <ul class="pagination pagination-sm mb-0">
+                  <li class="page-item" [class.disabled]="receivedByUserCurrentPage() === 1">
+                    <button
+                      type="button"
+                      class="page-link"
+                      (click)="goToReceivedByUserPage(receivedByUserCurrentPage() - 1)"
+                      aria-label="Página anterior"
+                    >
+                      <i class="bi bi-chevron-left"></i>
+                    </button>
+                  </li>
+
+                  @for (p of visibleReceivedByUserPagesArray(); track p) {
+                    <li class="page-item" [class.active]="p === receivedByUserCurrentPage()">
+                      <button type="button" class="page-link" (click)="goToReceivedByUserPage(p)">
+                        {{ p }}
+                      </button>
+                    </li>
+                  }
+
+                  <li
+                    class="page-item"
+                    [class.disabled]="receivedByUserCurrentPage() === totalReceivedByUserPages()"
+                  >
+                    <button
+                      type="button"
+                      class="page-link"
+                      (click)="goToReceivedByUserPage(receivedByUserCurrentPage() + 1)"
+                      aria-label="Página siguiente"
+                    >
+                      <i class="bi bi-chevron-right"></i>
+                    </button>
+                  </li>
+                </ul>
+              </nav>
+            }
+          </div>
+        }
+      </div>
+    </div>
+  }
+</div>

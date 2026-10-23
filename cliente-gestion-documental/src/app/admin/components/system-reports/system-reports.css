@@ -1,0 +1,21 @@
+.system-reports-container {
+  width: 100%;
+}
+
+.nav-pills .nav-link {
+  color: #64748b;
+  background-color: transparent;
+  transition: all 0.2s ease-in-out;
+  border: 1px solid transparent;
+}
+
+.nav-pills .nav-link:hover:not(.active) {
+  background-color: #f8fafc;
+  color: #1e40af;
+}
+
+.nav-pills .nav-link.active {
+  background-color: #1e40af;
+  color: #ffffff;
+  box-shadow: 0 2px 6px rgba(30, 64, 175, 0.25);
+}
