@@ -1,6 +1,7 @@
-import { Component, computed, signal } from '@angular/core';
+import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { ReportService } from '../../../../../core/services/report';
 import {
   SharingReportView,
   MostSharedFileReportItem,
@@ -15,24 +16,26 @@ import {
   templateUrl: './sharing-reports.html',
   styleUrl: './sharing-reports.css',
 })
-export class SharingReports {
+export class SharingReports implements OnInit {
+  private readonly reportService = inject(ReportService);
+
   // Pestaña activa dentro del apartado de reportes de compartición
   readonly activeSubReport = signal<SharingReportView>('most-shared-files');
 
-  // Estado de carga y última consulta
-  readonly isLoading = signal<boolean>(false);
-  readonly lastUpdatedAt = signal<Date | null>(null);
+  // Estado reactivo vinculado al servicio para archivos más compartidos
+  readonly mostSharedFiles = this.reportService.mostSharedFiles;
+  readonly isLoadingMostSharedFiles = this.reportService.isLoadingMostSharedFiles;
+  readonly lastUpdatedMostSharedFilesAt = this.reportService.lastUpdatedMostSharedFilesAt;
 
   // Selector de usuario para los subreportes 2 y 3
   readonly selectedUserId = signal<string>('');
   readonly availableUsers = signal<UserSelectOption[]>([]);
 
-  // Colecciones reactivas de datos para cada reporte
-  readonly mostSharedFiles = signal<MostSharedFileReportItem[]>([]);
+  // Colecciones reactivas de datos para futuros reportes 2 y 3
   readonly resourcesSharedByUser = signal<UserResourceSharedItem[]>([]);
   readonly resourcesReceivedByUser = signal<UserResourceReceivedItem[]>([]);
 
-  // REPORTE 1: Archivos más compartidos
+  // --- REPORTE 1: Archivos más compartidos ---
   readonly mostSharedSearchTerm = signal<string>('');
   readonly mostSharedCurrentPage = signal<number>(1);
   readonly mostSharedPageSize = signal<number>(5);
@@ -93,7 +96,7 @@ export class SharingReports {
     return pages;
   });
 
-  // REPORTE 2: Recursos compartidos por un usuario seleccionado
+  // --- REPORTE 2: Recursos compartidos por un usuario seleccionado ---
   readonly sharedByUserSearchTerm = signal<string>('');
   readonly sharedByUserCurrentPage = signal<number>(1);
   readonly sharedByUserPageSize = signal<number>(5);
@@ -154,7 +157,7 @@ export class SharingReports {
     return pages;
   });
 
-  // REPORTE 3: Recursos recibidos por un usuario seleccionado
+  // --- REPORTE 3: Recursos recibidos por un usuario seleccionado ---
   readonly receivedByUserSearchTerm = signal<string>('');
   readonly receivedByUserCurrentPage = signal<number>(1);
   readonly receivedByUserPageSize = signal<number>(5);
@@ -215,19 +218,50 @@ export class SharingReports {
     return pages;
   });
 
+  // Estados computados de carga y última consulta
+  readonly currentIsLoading = computed(() => {
+    if (this.activeSubReport() === 'most-shared-files') {
+      return this.isLoadingMostSharedFiles();
+    }
+    return false;
+  });
+
+  readonly currentLastUpdatedAt = computed(() => {
+    if (this.activeSubReport() === 'most-shared-files') {
+      return this.lastUpdatedMostSharedFilesAt();
+    }
+    return null;
+  });
+
+  ngOnInit(): void {
+    this.loadMostSharedFiles();
+  }
+
+  loadMostSharedFiles(): void {
+    this.reportService.getMostSharedFiles().subscribe({
+      next: () => {
+        this.mostSharedCurrentPage.set(1);
+      },
+    });
+  }
+
   switchSubReport(view: SharingReportView): void {
     this.activeSubReport.set(view);
+    if (view === 'most-shared-files' && this.mostSharedFiles().length === 0) {
+      this.loadMostSharedFiles();
+    }
   }
 
   refreshActiveReport(): void {
-    this.lastUpdatedAt.set(new Date());
+    if (this.activeSubReport() === 'most-shared-files') {
+      this.loadMostSharedFiles();
+    }
   }
 
   onUserSelect(userId: string): void {
     this.selectedUserId.set(userId);
     this.sharedByUserCurrentPage.set(1);
     this.receivedByUserCurrentPage.set(1);
-    this.refreshActiveReport();
   }
 
   onMostSharedSearch(term: string): void {

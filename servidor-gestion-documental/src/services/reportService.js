@@ -323,9 +323,160 @@ const getFilesByDateRange = async (startDate, endDate) => {
   return await File.aggregate(pipeline);
 };
 
+/**
+ * Reporte: Archivos compartidos con mayor cantidad de usuarios.
+ * Identifica los archivos activos con colaboradores en sharedWith, calcula la cantidad de colaboradores,
+ * ordena descendentemente y proyecta la información del propietario, ruta y detalle de colaboradores.
+ * @returns {Promise<Array<{fileId: string, fileName: string, extension: string, sizeBytes: number, lastSharedAt: Date, collaboratorsCount: number, ownerName: string, ownerEmail: string, folderPath: string, collaborators: Array<{userId: string, permission: string, userName: string, userEmail: string}>}>>}
+ */
+const getMostSharedFiles = async () => {
+  const pipeline = [
+    {
+      $match: {
+        isTrash: false,
+        "sharedWith.0": { $exists: true },
+      },
+    },
+    {
+      $addFields: {
+        collaboratorsCount: { $size: "$sharedWith" },
+      },
+    },
+    {
+      $sort: {
+        collaboratorsCount: -1,
+        updatedAt: -1,
+        name: 1,
+      },
+    },
+    {
+      $lookup: {
+        from: "users",
+        localField: "ownerId",
+        foreignField: "_id",
+        as: "ownerInfo",
+      },
+    },
+    { $unwind: "$ownerInfo" },
+    {
+      $lookup: {
+        from: "folders",
+        localField: "folderId",
+        foreignField: "_id",
+        as: "folderInfo",
+      },
+    },
+    {
+      $unwind: {
+        path: "$folderInfo",
+        preserveNullAndEmptyArrays: true,
+      },
+    },
+    {
+      $lookup: {
+        from: "users",
+        localField: "sharedWith.userId",
+        foreignField: "_id",
+        as: "collabUsers",
+      },
+    },
+    {
+      $project: {
+        _id: 0,
+        fileId: "$_id",
+        fileName: "$name",
+        extension: "$extension",
+        sizeBytes: "$sizeBytes",
+        lastSharedAt: "$updatedAt",
+        collaboratorsCount: 1,
+        ownerName: {
+          $trim: {
+            input: {
+              $concat: [
+                { $ifNull: ["$ownerInfo.name", ""] },
+                " ",
+                { $ifNull: ["$ownerInfo.lastName", ""] },
+              ],
+            },
+          },
+        },
+        ownerEmail: "$ownerInfo.email",
+        folderPath: {
+          $cond: [
+            { $ifNull: ["$folderInfo.path", false] },
+            "$folderInfo.path",
+            "/",
+          ],
+        },
+        collaborators: {
+          $map: {
+            input: "$sharedWith",
+            as: "sw",
+            in: {
+              userId: "$$sw.userId",
+              permission: "$$sw.permission",
+              userName: {
+                $let: {
+                  vars: {
+                    matchedUser: {
+                      $arrayElemAt: [
+                        {
+                          $filter: {
+                            input: "$collabUsers",
+                            as: "cu",
+                            cond: { $eq: ["$$cu._id", "$$sw.userId"] },
+                          },
+                        },
+                        0,
+                      ],
+                    },
+                  },
+                  in: {
+                    $trim: {
+                      input: {
+                        $concat: [
+                          { $ifNull: ["$$matchedUser.name", ""] },
+                          " ",
+                          { $ifNull: ["$$matchedUser.lastName", ""] },
+                        ],
+                      },
+                    },
+                  },
+                },
+              },
+              userEmail: {
+                $let: {
+                  vars: {
+                    matchedUser: {
+                      $arrayElemAt: [
+                        {
+                          $filter: {
+                            input: "$collabUsers",
+                            as: "cu",
+                            cond: { $eq: ["$$cu._id", "$$sw.userId"] },
+                          },
+                        },
+                        0,
+                      ],
+                    },
+                  },
+                  in: { $ifNull: ["$$matchedUser.email", ""] },
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+  ];
+
+  return await File.aggregate(pipeline);
+};
+
 module.exports = {
   getTopUsersByFiles,
   getTopUsersBySharedResources,
   getFilesGroupedByType,
   getFilesByDateRange,
+  getMostSharedFiles,
 };

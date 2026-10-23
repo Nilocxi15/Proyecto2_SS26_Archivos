@@ -10,12 +10,14 @@ import {
   FileTypeReportItem,
   DateRangeFileItem,
 } from '../../admin/components/system-reports/components/storage-reports/storage-reports.models';
+import { MostSharedFileReportItem } from '../../admin/components/system-reports/components/sharing-reports/sharing-reports.models';
 
 export type {
   UserStorageReportItem,
   UserSharedReportItem,
   FileTypeReportItem,
   DateRangeFileItem,
+  MostSharedFileReportItem,
 };
 
 interface ApiResponse<T> {
@@ -50,6 +52,34 @@ export class ReportService {
   readonly filesByDateRange = signal<DateRangeFileItem[]>([]);
   readonly isLoadingDateRange = signal<boolean>(false);
   readonly lastUpdatedDateRangeAt = signal<Date | null>(null);
+
+  // Estado reactivo para archivos compartidos con mayor cantidad de usuarios
+  readonly mostSharedFiles = signal<MostSharedFileReportItem[]>([]);
+  readonly isLoadingMostSharedFiles = signal<boolean>(false);
+  readonly lastUpdatedMostSharedFilesAt = signal<Date | null>(null);
+
+  /**
+   * Obtiene los archivos compartidos con mayor cantidad de usuarios
+   */
+  getMostSharedFiles(): Observable<ApiResponse<MostSharedFileReportItem[]>> {
+    this.isLoadingMostSharedFiles.set(true);
+    return this.http
+      .get<ApiResponse<MostSharedFileReportItem[]>>(`${this.apiUrl}/sharing/most-shared-files`)
+      .pipe(
+        tap({
+          next: (res) => {
+            if (res.status === 'success' && res.data) {
+              this.mostSharedFiles.set(res.data);
+              this.lastUpdatedMostSharedFilesAt.set(new Date());
+            }
+            this.isLoadingMostSharedFiles.set(false);
+          },
+          error: () => {
+            this.isLoadingMostSharedFiles.set(false);
+          },
+        }),
+      );
+  }
 
   /**
    * Obtiene los archivos almacenados dentro de un rango de fechas

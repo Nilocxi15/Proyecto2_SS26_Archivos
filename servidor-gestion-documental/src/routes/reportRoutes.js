@@ -19,4 +19,7 @@ router.get("/storage/by-type", reportController.getFilesGroupedByType);
 // Reporte: Archivos almacenados dentro de un rango de fechas
 router.get("/storage/by-date-range", reportController.getFilesByDateRange);
 
+// Reporte: Archivos compartidos con mayor cantidad de usuarios
+router.get("/sharing/most-shared-files", reportController.getMostSharedFiles);
+
 module.exports = router;

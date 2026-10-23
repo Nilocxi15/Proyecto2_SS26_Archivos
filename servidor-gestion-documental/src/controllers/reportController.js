@@ -69,9 +69,27 @@ const getFilesByDateRange = async (req, res, next) => {
   }
 };
 
+/**
+ * GET /api/reports/sharing/most-shared-files
+ * Retorna los archivos compartidos con mayor cantidad de usuarios
+ */
+const getMostSharedFiles = async (req, res, next) => {
+  try {
+    const data = await reportService.getMostSharedFiles();
+
+    return res.status(200).json({
+      status: "success",
+      data,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   getTopUsersByFiles,
   getTopUsersBySharedResources,
   getFilesGroupedByType,
   getFilesByDateRange,
+  getMostSharedFiles,
 };
