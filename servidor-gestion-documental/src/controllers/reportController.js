@@ -137,6 +137,23 @@ const getResourcesReceivedByUser = async (req, res, next) => {
 };
 
 /**
+ * GET /api/reports/storage/by-operations
+ * Retorna los archivos con mayor cantidad de operaciones registradas
+ */
+const getFilesByOperations = async (req, res, next) => {
+  try {
+    const data = await reportService.getFilesByOperations();
+
+    return res.status(200).json({
+      status: "success",
+      data,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
  * GET /api/reports/users/select-options
  * Retorna el listado ligero de usuarios activos para los selectores de los reportes
  */
@@ -158,6 +175,7 @@ module.exports = {
   getTopUsersBySharedResources,
   getFilesGroupedByType,
   getFilesByDateRange,
+  getFilesByOperations,
   getMostSharedFiles,
   getResourcesSharedByUser,
   getResourcesReceivedByUser,

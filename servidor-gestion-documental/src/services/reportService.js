@@ -837,11 +837,94 @@ const getUsersForSelect = async () => {
   }));
 };
 
+/**
+ * Reporte: Archivos con mayor cantidad de operaciones registradas.
+ * Agrupa la colección activity_logs por archivo, contabilizando el total de operaciones acumuladas
+ * y recuperando la información del archivo, propietario y última acción efectuada.
+ * @returns {Promise<Array<{fileId: string, fileName: string, extension: string, ownerName: string, operationsCount: number, lastOperationType: string, lastOperationAt: Date}>>}
+ */
+const getFilesByOperations = async () => {
+  const ActivityLog = require("../models/ActivityLog");
+
+  const pipeline = [
+    { $match: { resourceType: "archivo" } },
+    { $sort: { timestamp: 1 } },
+    {
+      $group: {
+        _id: "$resourceId",
+        operationsCount: { $sum: 1 },
+        lastOperationType: { $last: "$action" },
+        lastOperationAt: { $max: "$timestamp" },
+        details: { $last: "$details" },
+      },
+    },
+    { $sort: { operationsCount: -1, lastOperationAt: -1 } },
+    {
+      $lookup: {
+        from: "files",
+        localField: "_id",
+        foreignField: "_id",
+        as: "file",
+      },
+    },
+    { $unwind: { path: "$file", preserveNullAndEmptyArrays: true } },
+    {
+      $lookup: {
+        from: "users",
+        localField: "file.ownerId",
+        foreignField: "_id",
+        as: "owner",
+      },
+    },
+    { $unwind: { path: "$owner", preserveNullAndEmptyArrays: true } },
+    {
+      $project: {
+        _id: 0,
+        fileId: { $toString: "$_id" },
+        fileName: { $ifNull: ["$file.name", "$details.name", "Archivo"] },
+        extension: {
+          $ifNull: ["$file.extension", "$details.extension", "txt"],
+        },
+        ownerName: {
+          $let: {
+            vars: {
+              fullName: {
+                $trim: {
+                  input: {
+                    $concat: [
+                      { $ifNull: ["$owner.name", ""] },
+                      " ",
+                      { $ifNull: ["$owner.lastName", ""] },
+                    ],
+                  },
+                },
+              },
+            },
+            in: {
+              $cond: [
+                { $gt: [{ $strLenCP: "$$fullName" }, 0] },
+                "$$fullName",
+                "Usuario del sistema",
+              ],
+            },
+          },
+        },
+        operationsCount: 1,
+        lastOperationType: 1,
+        lastOperationAt: 1,
+      },
+    },
+  ];
+
+  return await ActivityLog.aggregate(pipeline);
+};
+
 module.exports = {
   getTopUsersByFiles,
   getTopUsersBySharedResources,
   getFilesGroupedByType,
   getFilesByDateRange,
+  getFilesByOperations,
   getMostSharedFiles,
   getResourcesSharedByUser,
   getResourcesReceivedByUser,

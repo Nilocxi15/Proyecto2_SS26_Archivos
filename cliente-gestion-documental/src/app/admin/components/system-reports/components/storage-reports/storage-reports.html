@@ -545,7 +545,7 @@
   @if (activeSubReport() === 'by-operations') {
     <div class="card border rounded-3 overflow-hidden shadow-sm bg-white">
       <div class="card-header bg-light border-bottom py-3 px-4">
-        <div class="d-flex align-items-center justify-content-between">
+        <div class="d-flex flex-wrap align-items-center justify-content-between gap-3">
           <div>
             <h2 class="h6 fw-bold text-dark mb-1">
               Archivos con mayor cantidad de operaciones registradas
@@ -555,9 +555,58 @@
               auditoría.
             </p>
           </div>
-          <span class="badge bg-success-subtle text-success-emphasis rounded-pill px-3 py-2 small">
-            {{ filesByOperations().length }} archivos en ranking
-          </span>
+          <div class="d-flex align-items-center gap-2">
+            <span class="badge bg-light text-secondary border rounded-pill px-3 py-2 small">
+              {{ filesByOperations().length }} archivos en ranking
+            </span>
+            <span class="badge bg-light text-secondary border rounded-pill px-3 py-2 small">
+              {{ totalOperationsSum() }} operaciones registradas
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Barra de Filtro de Búsqueda y Paginador -->
+      <div class="p-3 border-bottom bg-white">
+        <div class="row g-2 align-items-center justify-content-between">
+          <div class="col-12 col-md-6 col-lg-5">
+            <div class="input-group input-group-sm">
+              <span class="input-group-text bg-light text-muted border-end-0">
+                <i class="bi bi-search"></i>
+              </span>
+              <input
+                type="text"
+                class="form-control border-start-0 bg-light"
+                placeholder="Buscar por archivo, propietario o acción..."
+                [ngModel]="operationsSearchTerm()"
+                (ngModelChange)="onOperationsSearch($event)"
+              />
+              @if (operationsSearchTerm()) {
+                <button
+                  type="button"
+                  class="btn btn-light border-start-0 text-muted"
+                  (click)="clearOperationsSearch()"
+                  title="Limpiar búsqueda"
+                >
+                  <i class="bi bi-x-circle"></i>
+                </button>
+              }
+            </div>
+          </div>
+
+          <div class="col-auto d-flex align-items-center gap-2">
+            <label for="operationsPageSizeSelect" class="text-muted small mb-0">Mostrar:</label>
+            <select
+              id="operationsPageSizeSelect"
+              class="form-select form-select-sm w-auto"
+              [ngModel]="operationsPageSize()"
+              (ngModelChange)="setOperationsPageSize($event)"
+            >
+              <option [value]="5">5</option>
+              <option [value]="10">10</option>
+              <option [value]="25">25</option>
+            </select>
+          </div>
         </div>
       </div>
 
@@ -567,22 +616,22 @@
             <div class="spinner-border spinner-border-sm text-primary mb-2" role="status"></div>
             <div class="small">Consultando reporte en tiempo real...</div>
           </div>
-        } @else if (filesByOperations().length === 0) {
+        } @else if (filteredOperationsFiles().length === 0) {
           <!-- Estado Vacío sin registros -->
           <div class="text-center py-5 px-3">
             <div
               class="empty-icon-circle bg-light text-muted mx-auto mb-3 d-flex align-items-center justify-content-center rounded-circle"
-              style="width: 64px; height: 64px"
+              style="width: 56px; height: 56px"
             >
-              <i class="bi bi-activity fs-2"></i>
+              <i class="bi bi-file-earmark-bar-graph fs-3"></i>
             </div>
-            <h3 class="h6 fw-semibold text-dark mb-1">
-              No hay registros de operaciones en archivos
-            </h3>
+            <h3 class="h6 fw-semibold text-dark mb-1">No se encontraron archivos en el ranking</h3>
             <p class="text-muted small mx-auto mb-0" style="max-width: 460px">
-              Actualmente no se registran actividades de auditoría asociadas a archivos. Cuando se
-              ejecuten acciones de creación, actualización, descarga o compartición, aquí se
-              listarán los documentos con mayor frecuencia de uso.
+              @if (operationsSearchTerm()) {
+                No hay coincidencias para el término "{{ operationsSearchTerm() }}".
+              } @else {
+                Actualmente no se registran actividades de auditoría sobre archivos en el sistema.
+              }
             </p>
           </div>
         } @else {
@@ -591,63 +640,44 @@
             <table class="table table-hover align-middle mb-0">
               <thead class="table-light text-secondary small text-uppercase">
                 <tr>
-                  <th scope="col" class="ps-4 py-3" style="width: 70px">Posición</th>
+                  <th scope="col" class="ps-4 py-3" style="width: 70px">#</th>
                   <th scope="col">Archivo</th>
                   <th scope="col">Propietario</th>
-                  <th scope="col" class="text-center">Operaciones Registradas</th>
+                  <th scope="col" class="text-center">Operaciones</th>
                   <th scope="col">Última Operación</th>
                   <th scope="col" class="pe-4 text-end">Fecha de Última Acción</th>
                 </tr>
               </thead>
               <tbody>
-                @for (item of filesByOperations(); track item.fileId; let i = $index) {
+                @for (item of paginatedOperationsFiles(); track item.fileId; let i = $index) {
                   <tr>
                     <td class="ps-4">
-                      @switch (i) {
-                        @case (0) {
-                          <span class="badge bg-warning text-dark rounded-pill px-2 py-1 fw-bold">
-                            #1
-                          </span>
-                        }
-                        @case (1) {
-                          <span
-                            class="badge bg-secondary-subtle text-dark rounded-pill px-2 py-1 fw-bold"
-                          >
-                            #2
-                          </span>
-                        }
-                        @case (2) {
-                          <span
-                            class="badge bg-info-subtle text-info-emphasis rounded-pill px-2 py-1 fw-bold"
-                          >
-                            #3
-                          </span>
-                        }
-                        @default {
-                          <span
-                            class="badge bg-light text-secondary rounded-pill px-2 py-1 fw-semibold"
-                          >
-                            #{{ i + 1 }}
-                          </span>
-                        }
-                      }
+                      <span class="text-muted small fw-semibold">
+                        #{{ (operationsCurrentPage() - 1) * operationsPageSize() + i + 1 }}
+                      </span>
                     </td>
                     <td>
                       <div class="d-flex align-items-center gap-2">
                         <i class="bi fs-5" [class]="getFileIcon(item.extension)"></i>
-                        <span
-                          class="fw-semibold text-dark small text-truncate"
-                          style="max-width: 220px"
-                        >
-                          {{ item.fileName }}
-                        </span>
+                        <div>
+                          <span
+                            class="fw-semibold text-dark small text-truncate d-block"
+                            style="max-width: 260px"
+                            [title]="item.fileName"
+                          >
+                            {{ item.fileName }}
+                          </span>
+                          <span class="text-muted text-uppercase" style="font-size: 0.7rem">
+                            {{ item.extension }}
+                          </span>
+                        </div>
                       </div>
                     </td>
                     <td>
                       <div class="d-flex align-items-center gap-2">
                         <div
-                          class="avatar-circle bg-primary-subtle text-primary-emphasis fw-bold small rounded-circle d-flex align-items-center justify-content-center"
-                          style="width: 30px; height: 30px"
+                          class="avatar-circle bg-light text-secondary border fw-medium small rounded-circle d-flex align-items-center justify-content-center"
+                          style="width: 28px; height: 28px; font-size: 0.75rem"
                         >
                           {{ getInitials(item.ownerName) }}
                         </div>
@@ -655,15 +685,16 @@
                       </div>
                     </td>
                     <td class="text-center">
-                      <span
-                        class="badge bg-success-subtle text-success-emphasis rounded-pill px-3 py-1 fw-bold"
-                      >
+                      <span class="badge bg-light text-dark border px-2 py-1 fw-bold">
                         {{ item.operationsCount }}
                       </span>
                     </td>
                     <td>
-                      <span class="badge bg-light text-secondary border">
-                        {{ item.lastOperationType }}
+                      <span
+                        class="badge bg-light text-secondary border px-2 py-1 font-monospace"
+                        style="font-size: 0.75rem"
+                      >
+                        {{ getActionLabel(item.lastOperationType) }}
                       </span>
                     </td>
                     <td class="pe-4 text-end text-muted small">
@@ -673,6 +704,62 @@
                 }
               </tbody>
             </table>
+          </div>
+
+          <!-- Pie de Tabla con Controles de Paginación -->
+          <div
+            class="d-flex flex-wrap align-items-center justify-content-between p-3 px-4 border-top bg-light gap-2"
+          >
+            <div class="text-muted small">
+              Mostrando
+              <strong>{{ operationsStartIndex() }}</strong>
+              a
+              <strong>{{ operationsEndIndex() }}</strong>
+              de
+              <strong>{{ filteredOperationsFiles().length }}</strong>
+              archivos
+            </div>
+
+            @if (totalOperationsPages() > 1) {
+              <nav aria-label="Navegación de páginas de operaciones">
+                <ul class="pagination pagination-sm mb-0">
+                  <li class="page-item" [class.disabled]="operationsCurrentPage() === 1">
+                    <button
+                      type="button"
+                      class="page-link"
+                      (click)="goToOperationsPage(operationsCurrentPage() - 1)"
+                      [disabled]="operationsCurrentPage() === 1"
+                      aria-label="Página anterior"
+                    >
+                      <i class="bi bi-chevron-left"></i>
+                    </button>
+                  </li>
+
+                  @for (page of visibleOperationsPagesArray(); track page) {
+                    <li class="page-item" [class.active]="operationsCurrentPage() === page">
+                      <button type="button" class="page-link" (click)="goToOperationsPage(page)">
+                        {{ page }}
+                      </button>
+                    </li>
+                  }
+
+                  <li
+                    class="page-item"
+                    [class.disabled]="operationsCurrentPage() === totalOperationsPages()"
+                  >
+                    <button
+                      type="button"
+                      class="page-link"
+                      (click)="goToOperationsPage(operationsCurrentPage() + 1)"
+                      [disabled]="operationsCurrentPage() === totalOperationsPages()"
+                      aria-label="Página siguiente"
+                    >
+                      <i class="bi bi-chevron-right"></i>
+                    </button>
+                  </li>
+                </ul>
+              </nav>
+            }
           </div>
         }
       </div>

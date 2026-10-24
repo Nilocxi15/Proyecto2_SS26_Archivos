@@ -9,6 +9,7 @@ import {
 import {
   FileTypeReportItem,
   DateRangeFileItem,
+  FileOperationsItem,
 } from '../../admin/components/system-reports/components/storage-reports/storage-reports.models';
 import {
   MostSharedFileReportItem,
@@ -22,6 +23,7 @@ export type {
   UserSharedReportItem,
   FileTypeReportItem,
   DateRangeFileItem,
+  FileOperationsItem,
   MostSharedFileReportItem,
   UserResourceSharedItem,
   UserResourceReceivedItem,
@@ -60,6 +62,11 @@ export class ReportService {
   readonly filesByDateRange = signal<DateRangeFileItem[]>([]);
   readonly isLoadingDateRange = signal<boolean>(false);
   readonly lastUpdatedDateRangeAt = signal<Date | null>(null);
+
+  // Estado reactivo para archivos con mayor cantidad de operaciones registradas
+  readonly filesByOperations = signal<FileOperationsItem[]>([]);
+  readonly isLoadingFilesByOperations = signal<boolean>(false);
+  readonly lastUpdatedFilesByOperationsAt = signal<Date | null>(null);
 
   // Estado reactivo para archivos compartidos con mayor cantidad de usuarios
   readonly mostSharedFiles = signal<MostSharedFileReportItem[]>([]);
@@ -198,6 +205,29 @@ export class ReportService {
           },
           error: () => {
             this.isLoadingDateRange.set(false);
+          },
+        }),
+      );
+  }
+
+  /**
+   * Obtiene los archivos con mayor cantidad de operaciones registradas
+   */
+  getFilesByOperations(): Observable<ApiResponse<FileOperationsItem[]>> {
+    this.isLoadingFilesByOperations.set(true);
+    return this.http
+      .get<ApiResponse<FileOperationsItem[]>>(`${this.apiUrl}/storage/by-operations`)
+      .pipe(
+        tap({
+          next: (res) => {
+            if (res.status === 'success' && res.data) {
+              this.filesByOperations.set(res.data);
+              this.lastUpdatedFilesByOperationsAt.set(new Date());
+            }
+            this.isLoadingFilesByOperations.set(false);
+          },
+          error: () => {
+            this.isLoadingFilesByOperations.set(false);
           },
         }),
       );
