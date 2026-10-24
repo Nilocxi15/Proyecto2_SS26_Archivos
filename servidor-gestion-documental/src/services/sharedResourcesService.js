@@ -2,6 +2,7 @@ const Folder = require("../models/Folder");
 const File = require("../models/File");
 const User = require("../models/User");
 const mongoose = require("mongoose");
+const { logActivity } = require("./activityLogService");
 
 /**
  * Formatea un recurso compartido extrayendo datos del propietario y el permiso asignado al usuario
@@ -285,6 +286,18 @@ const shareResource = async (userId, resourceId, { email, permission }) => {
     userEmail: entry.userId?.email || "",
     permission: entry.permission,
   }));
+
+  logActivity({
+    userId,
+    action: "compartir",
+    resourceType: isFolder ? "carpeta" : "archivo",
+    resourceId: resource._id,
+    details: {
+      name: resource.name,
+      sharedTo: targetUser._id,
+      permission,
+    },
+  });
 
   return {
     resourceId: resource._id,
