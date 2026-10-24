@@ -175,6 +175,24 @@ export class ResourceService {
   }
 
   /**
+   * Actualiza en memoria los colaboradores compartidos de una carpeta
+   */
+  updateFolderSharedWith(folderId: string, sharedWith: any[]): void {
+    this.folders.update((list) =>
+      list.map((item) => (item._id === folderId ? { ...item, sharedWith } : item)),
+    );
+
+    const curr = this.currentFolder();
+    if (curr && curr._id === folderId) {
+      this.currentFolder.set({ ...curr, sharedWith });
+    }
+
+    this.sharedFolders.update((list) =>
+      list.map((item) => (item._id === folderId ? { ...item, sharedWith } : item)),
+    );
+  }
+
+  /**
    * Carga los archivos y carpetas del usuario según el folderId (raíz si es null o vacío)
    * @param folderId ID opcional de la carpeta actual
    */

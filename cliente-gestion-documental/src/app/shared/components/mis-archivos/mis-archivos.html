@@ -103,6 +103,19 @@
       <i class="bi bi-cloud-arrow-up me-2 fs-5"></i>
       <span>Subir Archivo</span>
     </button>
+
+    <!-- Botón Compartir Carpeta Actual -->
+    @if (currentFolder()) {
+      <button
+        type="button"
+        class="btn btn-outline-info d-flex align-items-center rounded-pill px-3 py-2 shadow-sm fw-medium"
+        (click)="openShareFolderModal(currentFolder()!)"
+        title="Compartir esta carpeta y todo su contenido"
+      >
+        <i class="bi bi-person-plus me-2 fs-5"></i>
+        <span>Compartir Carpeta</span>
+      </button>
+    }
   </div>
 </header>
 
@@ -230,6 +243,14 @@
                 <div class="d-flex align-items-center gap-1">
                   <button
                     type="button"
+                    class="btn btn-sm btn-outline-primary border-0 rounded-circle"
+                    (click)="openShareFolderModal(folder)"
+                    title="Compartir carpeta y su contenido"
+                  >
+                    <i class="bi bi-person-plus"></i>
+                  </button>
+                  <button
+                    type="button"
                     class="btn btn-sm btn-outline-danger border-0 rounded-circle"
                     (click)="openTrashModal(folder, 'folder')"
                     title="Mover a la papelera"
@@ -246,6 +267,18 @@
                   </button>
                 </div>
               </div>
+              @if (folder.sharedWith && folder.sharedWith.length > 0) {
+                <div class="mb-2">
+                  <span
+                    class="badge bg-info-subtle text-info-emphasis rounded-pill small"
+                    title="Carpeta compartida con {{ folder.sharedWith.length }} colaboradores"
+                  >
+                    <i class="bi bi-people-fill me-1"></i>Compartida ({{
+                      folder.sharedWith.length
+                    }})
+                  </span>
+                </div>
+              }
               <div
                 class="d-flex justify-content-between align-items-center text-muted small mt-2 pt-2 border-top"
               >
@@ -899,6 +932,20 @@
 
               <dt class="col-sm-4 text-muted">Última Modificación:</dt>
               <dd class="col-sm-8">{{ formatDate(folder.updatedAt) }}</dd>
+
+              <dt class="col-sm-4 text-muted">Compartición:</dt>
+              <dd class="col-sm-8">
+                @if (folder.sharedWith && folder.sharedWith.length > 0) {
+                  <span class="badge bg-info-subtle text-info-emphasis rounded-pill">
+                    <i class="bi bi-people-fill me-1"></i>Compartida con
+                    {{ folder.sharedWith.length }} personas
+                  </span>
+                } @else {
+                  <span class="badge bg-secondary-subtle text-secondary-emphasis rounded-pill">
+                    <i class="bi bi-lock me-1"></i>Privada (solo tú)
+                  </span>
+                }
+              </dd>
             </dl>
           } @else if (selectedFileDetail(); as file) {
             <!-- Detalles de Archivo -->
@@ -935,6 +982,13 @@
 
         <div class="modal-footer border-top py-2">
           @if (selectedFolderDetail(); as folder) {
+            <button
+              type="button"
+              class="btn btn-outline-primary btn-sm rounded-pill px-3"
+              (click)="openShareFolderFromDetails()"
+            >
+              <i class="bi bi-person-plus me-1"></i> Compartir
+            </button>
             <button
               type="button"
               class="btn btn-outline-danger btn-sm rounded-pill px-3"
@@ -1064,9 +1118,7 @@
           <div class="d-flex align-items-center gap-2 min-w-0">
             <i class="bi bi-folder-symlink-fill text-primary fs-4"></i>
             <div class="min-w-0">
-              <h5 class="modal-title h6 fw-bold mb-0 text-truncate">
-                Mover "{{ file.name }}"
-              </h5>
+              <h5 class="modal-title h6 fw-bold mb-0 text-truncate">Mover "{{ file.name }}"</h5>
               <div class="text-muted small" style="font-size: 0.75rem">
                 Selecciona la carpeta de destino
               </div>
@@ -1114,7 +1166,7 @@
           } @else {
             <div
               class="destination-list d-flex flex-column gap-2"
-              style="max-height: 280px; overflow-y: auto;"
+              style="max-height: 280px; overflow-y: auto"
             >
               <!-- Opción: Directorio Raíz -->
               <div
@@ -1208,6 +1260,196 @@
             } @else {
               <i class="bi bi-folder-symlink me-1"></i> Mover aquí
             }
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+}
+
+<!-- MODAL BOOTSTRAP: COMPARTIR CARPETA Y GESTIONAR PERMISOS -->
+@if (isShareFolderModalVisible() && selectedFolderToShare(); as folder) {
+  <div class="modal-backdrop fade show"></div>
+  <div
+    class="modal fade show d-block"
+    tabindex="-1"
+    role="dialog"
+    aria-modal="true"
+    (click)="closeShareFolderModal()"
+  >
+    <div class="modal-dialog modal-dialog-centered" (click)="$event.stopPropagation()">
+      <div class="modal-content border-0 shadow-lg rounded-3">
+        <div class="modal-header border-bottom py-3">
+          <div class="d-flex align-items-center gap-2">
+            <i class="bi bi-folder-symlink-fill text-warning fs-4"></i>
+            <h5 class="modal-title h6 fw-bold mb-0">Compartir carpeta "{{ folder.name }}"</h5>
+          </div>
+          <button
+            type="button"
+            class="btn-close"
+            aria-label="Cerrar"
+            (click)="closeShareFolderModal()"
+          ></button>
+        </div>
+
+        <div class="modal-body p-4">
+          <!-- Aviso explicativo sobre herencia de permisos a todo el contenido -->
+          <div
+            class="alert alert-warning-subtle text-warning-emphasis border-0 py-2 px-3 small rounded-3 mb-3 d-flex align-items-center gap-2"
+          >
+            <div>
+              <strong>Compartición de carpetas completas:</strong>
+              Todos los archivos y subcarpetas contenidos dentro de <em>"{{ folder.name }}"</em>
+              heredarán automáticamente los permisos asignados a cada colaborador.
+            </div>
+          </div>
+
+          @if (shareFolderError()) {
+            <div class="alert alert-danger py-2 px-3 small border-0 mb-3" role="alert">
+              <i class="bi bi-exclamation-circle me-1"></i> {{ shareFolderError() }}
+            </div>
+          }
+
+          <!-- Formulario para invitar usuarios a la carpeta -->
+          <div class="mb-4">
+            <label class="form-label small fw-semibold text-secondary">
+              Invitar personas por correo electrónico
+            </label>
+            <div class="row g-2">
+              <div class="col-12 col-sm-7">
+                <input
+                  type="email"
+                  class="form-control form-control-sm"
+                  placeholder="usuario@organizacion.com"
+                  [ngModel]="folderInviteEmail()"
+                  (ngModelChange)="folderInviteEmail.set($event)"
+                  (keydown.enter)="inviteFolderCollaborator()"
+                />
+              </div>
+              <div class="col-7 col-sm-3">
+                <select
+                  class="form-select form-select-sm"
+                  [ngModel]="folderInvitePermission()"
+                  (ngModelChange)="folderInvitePermission.set($event)"
+                >
+                  <option value="lectura">Lectura</option>
+                  <option value="edicion">Edición</option>
+                  <option value="comentar">Comentar</option>
+                </select>
+              </div>
+              <div class="col-5 col-sm-2 d-grid">
+                <button
+                  type="button"
+                  class="btn btn-primary btn-sm"
+                  [disabled]="isSharingFolder() || !folderInviteEmail().trim()"
+                  (click)="inviteFolderCollaborator()"
+                >
+                  @if (isSharingFolder()) {
+                    <span class="spinner-border spinner-border-sm" role="status"></span>
+                  } @else {
+                    Invitar
+                  }
+                </button>
+              </div>
+            </div>
+            <div class="form-text small mt-1">              
+              <strong>Lectura:</strong> consultar y descargar contenido ·
+              <strong>Edición:</strong> crear, editar y organizar archivos ·
+              <strong>Comentar:</strong> ver y añadir comentarios.
+            </div>
+          </div>
+
+          <!-- Lista de Personas con Acceso a la Carpeta -->
+          <div>
+            <h6 class="small fw-bold text-secondary text-uppercase mb-2">Personas con acceso</h6>
+
+            <div class="list-group list-group-flush border rounded-3">
+              <!-- Propietario -->
+              <div
+                class="list-group-item d-flex align-items-center justify-content-between py-2 px-3"
+              >
+                <div class="d-flex align-items-center gap-2 min-w-0">
+                  <div class="avatar-circle bg-primary text-white fw-bold small flex-shrink-0">
+                    {{ getInitials(authService.currentUser()?.name || 'P') }}
+                  </div>
+                  <div class="min-w-0">
+                    <div class="fw-semibold text-dark small text-truncate">
+                      {{ authService.currentUser()?.name || 'Tú' }}
+                      <span class="text-muted">(tú)</span>
+                    </div>
+                    <div class="text-muted small text-truncate" style="font-size: 0.75rem">
+                      {{ authService.currentUser()?.email }}
+                    </div>
+                  </div>
+                </div>
+                <span class="badge bg-primary-subtle text-primary-emphasis rounded-pill">
+                  Propietario
+                </span>
+              </div>
+
+              <!-- Colaboradores Invitados -->
+              @if (folderSharedUsers().length === 0) {
+                <div class="list-group-item text-center py-3 text-muted small">
+                  <i class="bi bi-lock me-1"></i>
+                  Privada: únicamente tú tienes acceso a esta carpeta actualmente.
+                </div>
+              } @else {
+                @for (collab of folderSharedUsers(); track collab.userId) {
+                  <div
+                    class="list-group-item d-flex align-items-center justify-content-between py-2 px-3 gap-2"
+                  >
+                    <div class="d-flex align-items-center gap-2 min-w-0">
+                      <div
+                        class="avatar-circle bg-secondary-subtle text-secondary-emphasis fw-bold small flex-shrink-0"
+                      >
+                        {{ getInitials(collab.userName || collab.userEmail) }}
+                      </div>
+                      <div class="min-w-0">
+                        <div class="fw-medium text-dark small text-truncate">
+                          {{ collab.userName || collab.userEmail }}
+                        </div>
+                        <div class="text-muted small text-truncate" style="font-size: 0.75rem">
+                          {{ collab.userEmail }}
+                        </div>
+                      </div>
+                    </div>
+
+                    <!-- Selector de permiso dinámico y botón de revocación -->
+                    <div class="d-flex align-items-center gap-1 flex-shrink-0">
+                      <select
+                        class="form-select form-select-sm py-0 ps-2 pe-4"
+                        style="width: 110px; font-size: 0.8rem"
+                        [ngModel]="collab.permission"
+                        (ngModelChange)="updateFolderCollaboratorPermission(collab.userId, $event)"
+                      >
+                        <option value="lectura">Lectura</option>
+                        <option value="edicion">Edición</option>
+                        <option value="comentar">Comentar</option>
+                      </select>
+
+                      <button
+                        type="button"
+                        class="btn btn-sm btn-outline-danger border-0 rounded-circle"
+                        (click)="removeFolderCollaborator(collab.userId)"
+                        title="Revocar acceso a la carpeta"
+                      >
+                        <i class="bi bi-trash3"></i>
+                      </button>
+                    </div>
+                  </div>
+                }
+              }
+            </div>
+          </div>
+        </div>
+
+        <div class="modal-footer border-top py-2">
+          <button
+            type="button"
+            class="btn btn-primary btn-sm rounded-pill px-4"
+            (click)="closeShareFolderModal()"
+          >
+            Listo
           </button>
         </div>
       </div>

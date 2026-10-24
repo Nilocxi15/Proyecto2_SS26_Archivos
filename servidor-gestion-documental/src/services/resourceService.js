@@ -78,6 +78,128 @@ const resolveFilePermission = async (userObjectId, fileDoc) => {
 };
 
 /**
+ * Determina el nivel de acceso efectivo del usuario sobre una carpeta
+ * @param {mongoose.Types.ObjectId} userObjectId
+ * @param {object} folderDoc
+ * @returns {Promise<'propietario'|'edicion'|'comentar'|'lectura'|null>}
+ */
+const resolveFolderPermission = async (userObjectId, folderDoc) => {
+  const folderOwnerId = folderDoc.ownerId?._id || folderDoc.ownerId;
+  if (folderOwnerId && folderOwnerId.toString() === userObjectId.toString()) {
+    return "propietario";
+  }
+
+  // Permiso directo en la carpeta
+  const directShare = (folderDoc.sharedWith || []).find(
+    (s) =>
+      s.userId &&
+      (s.userId._id || s.userId).toString() === userObjectId.toString(),
+  );
+  if (directShare) {
+    return directShare.permission;
+  }
+
+  // Permiso heredado de ancestros
+  if (folderDoc.ancestors && folderDoc.ancestors.length > 0) {
+    const ancestorFolders = await Folder.find({
+      _id: { $in: folderDoc.ancestors },
+      isTrash: false,
+      "sharedWith.userId": userObjectId,
+    }).lean();
+
+    if (ancestorFolders.length > 0) {
+      const ancestorMap = new Map(
+        ancestorFolders.map((f) => [f._id.toString(), f]),
+      );
+      for (let i = folderDoc.ancestors.length - 1; i >= 0; i--) {
+        const anc = ancestorMap.get(folderDoc.ancestors[i].toString());
+        if (anc) {
+          const entry = (anc.sharedWith || []).find(
+            (s) =>
+              s.userId &&
+              (s.userId._id || s.userId).toString() === userObjectId.toString(),
+          );
+          if (entry) return entry.permission;
+        }
+      }
+    }
+  }
+
+  return null;
+};
+
+/**
+ * Obtiene el detalle completo de una carpeta (metadatos, colaboradores y conteo de elementos)
+ * @param {string|mongoose.Types.ObjectId} userId
+ * @param {string} folderId
+ */
+const getFolderDetails = async (userId, folderId) => {
+  const userObjectId = new mongoose.Types.ObjectId(userId);
+  const folder = await Folder.findById(folderId)
+    .populate("ownerId", "name lastName email")
+    .populate("sharedWith.userId", "name lastName email");
+
+  if (!folder) {
+    const error = new Error("La carpeta solicitada no existe");
+    error.statusCode = 404;
+    throw error;
+  }
+
+  if (folder.isTrash) {
+    const error = new Error(
+      "No es posible acceder a una carpeta que se encuentra en la papelera",
+    );
+    error.statusCode = 400;
+    throw error;
+  }
+
+  const permission = await resolveFolderPermission(userObjectId, folder);
+  if (!permission) {
+    const error = new Error("No tienes permisos para acceder a esta carpeta");
+    error.statusCode = 403;
+    throw error;
+  }
+
+  const [subfolderCount, fileCount] = await Promise.all([
+    Folder.countDocuments({ parentId: folder._id, isTrash: false }),
+    File.countDocuments({ folderId: folder._id, isTrash: false }),
+  ]);
+
+  const ownerObj = folder.ownerId;
+  const ownerName = ownerObj
+    ? `${ownerObj.name || ""} ${ownerObj.lastName || ""}`.trim()
+    : "Propietario";
+  const ownerEmail = ownerObj ? ownerObj.email : "";
+
+  const formattedSharedWith = (folder.sharedWith || []).map((s) => ({
+    userId: s.userId?._id || s.userId,
+    userName: s.userId
+      ? `${s.userId.name || ""} ${s.userId.lastName || ""}`.trim()
+      : "Usuario",
+    userEmail: s.userId?.email || "",
+    permission: s.permission,
+  }));
+
+  return {
+    _id: folder._id,
+    name: folder.name,
+    path: folder.path,
+    parentId: folder.parentId,
+    ownerId: ownerObj?._id || folder.ownerId,
+    ownerName,
+    ownerEmail,
+    myPermission: permission,
+    sharedWith: formattedSharedWith,
+    itemCount: subfolderCount + fileCount,
+    subfolderCount,
+    fileCount,
+    isTrash: folder.isTrash,
+    createdAt: folder.createdAt,
+    updatedAt: folder.updatedAt,
+  };
+};
+
+/**
  * Obtiene el detalle completo de un archivo (contenido, comentarios y usuarios compartidos)
  * @param {string|mongoose.Types.ObjectId} userId
  * @param {string} fileId
@@ -402,9 +524,11 @@ const getFileForDownload = async (userId, fileId) => {
 
 module.exports = {
   getFileDetails,
+  getFolderDetails,
   updateFile,
   addComment,
   deleteComment,
   getFileForDownload,
   resolveFilePermission,
+  resolveFolderPermission,
 };

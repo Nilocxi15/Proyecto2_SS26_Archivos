@@ -206,4 +206,10 @@ export class CompartidoConmigo implements OnInit {
     if (permission === 'comentar') return 'Comentarios';
     return 'Lectura';
   }
+
+  getPermissionBadgeClass(permission?: string): string {
+    if (permission === 'edicion') return 'bg-success-subtle text-success-emphasis';
+    if (permission === 'comentar') return 'bg-warning-subtle text-warning-emphasis';
+    return 'bg-secondary-subtle text-secondary-emphasis';
+  }
 }

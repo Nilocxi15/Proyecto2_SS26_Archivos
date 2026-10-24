@@ -1,8 +1,16 @@
 import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { BreadcrumbItem, FileItem, FolderItem } from '../../../core/models/resource.models';
+import {
+  BreadcrumbItem,
+  FileItem,
+  FolderItem,
+  ResourcePermission,
+  SharedUserEntry,
+} from '../../../core/models/resource.models';
 import { ResourceService } from '../../../core/services/resource.service';
+import { AuthService } from '../../../core/services/auth.service';
+import { ResourceTrashTarget } from './mis-archivos.models';
 
 @Component({
   selector: 'app-mis-archivos',
@@ -12,6 +20,7 @@ import { ResourceService } from '../../../core/services/resource.service';
 })
 export class MisArchivos implements OnInit {
   readonly resourceService = inject(ResourceService);
+  readonly authService = inject(AuthService);
 
   // Filtros, búsqueda y modo de vista
   readonly searchTerm = signal<string>('');
@@ -54,13 +63,18 @@ export class MisArchivos implements OnInit {
   readonly selectedFileDetail = signal<FileItem | null>(null);
   readonly isDetailModalVisible = signal<boolean>(false);
 
+  // Estado del modal de compartir carpeta y gestionar permisos
+  readonly isShareFolderModalVisible = signal<boolean>(false);
+  readonly selectedFolderToShare = signal<FolderItem | null>(null);
+  readonly folderSharedUsers = signal<SharedUserEntry[]>([]);
+  readonly folderInviteEmail = signal<string>('');
+  readonly folderInvitePermission = signal<ResourcePermission>('lectura');
+  readonly shareFolderError = signal<string | null>(null);
+  readonly isSharingFolder = signal<boolean>(false);
+
   // Estado del modal de confirmación para mover a la papelera
   readonly isTrashModalVisible = signal<boolean>(false);
-  readonly resourceToTrash = signal<{
-    id: string;
-    name: string;
-    type: 'folder' | 'file';
-  } | null>(null);
+  readonly resourceToTrash = signal<ResourceTrashTarget | null>(null);
 
   // Notificación de éxito
   readonly successNotification = signal<string | null>(null);
@@ -368,6 +382,210 @@ export class MisArchivos implements OnInit {
     this.isDetailModalVisible.set(false);
     this.selectedFolderDetail.set(null);
     this.selectedFileDetail.set(null);
+  }
+
+  // COMPARTIR CARPETAS Y GESTIONAR PERMISOS RECURSIVOS
+  openShareFolderModal(folder: FolderItem): void {
+    this.selectedFolderToShare.set(folder);
+    this.shareFolderError.set(null);
+    this.folderInviteEmail.set('');
+    this.folderInvitePermission.set('lectura');
+    this.isSharingFolder.set(false);
+
+    // Mapear colaboradores existentes con formato homogéneo
+    const existingShared: SharedUserEntry[] = (folder.sharedWith || []).map((entry: any) => ({
+      userId:
+        typeof entry.userId === 'object' && entry.userId !== null
+          ? (entry.userId as any)._id
+          : entry.userId,
+      userName:
+        typeof entry.userId === 'object' && entry.userId !== null
+          ? `${(entry.userId as any).name || ''} ${(entry.userId as any).lastName || ''}`.trim()
+          : entry.userName || 'Usuario',
+      userEmail:
+        typeof entry.userId === 'object' && entry.userId !== null
+          ? (entry.userId as any).email
+          : entry.userEmail || '',
+      permission: entry.permission || 'lectura',
+    }));
+
+    this.folderSharedUsers.set(existingShared);
+    this.isShareFolderModalVisible.set(true);
+  }
+
+  closeShareFolderModal(): void {
+    this.isShareFolderModalVisible.set(false);
+    this.selectedFolderToShare.set(null);
+    this.shareFolderError.set(null);
+    this.folderInviteEmail.set('');
+    this.isSharingFolder.set(false);
+  }
+
+  openShareFolderFromDetails(): void {
+    const folder = this.selectedFolderDetail();
+    if (!folder) return;
+    this.closeDetailsModal();
+    this.openShareFolderModal(folder);
+  }
+
+  inviteFolderCollaborator(): void {
+    const folder = this.selectedFolderToShare();
+    const email = this.folderInviteEmail().trim().toLowerCase();
+    const permission = this.folderInvitePermission();
+
+    if (!folder) return;
+
+    if (!email) {
+      this.shareFolderError.set('Por favor, ingresa el correo electrónico del usuario');
+      return;
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      this.shareFolderError.set('Ingresa un formato de correo electrónico válido');
+      return;
+    }
+
+    const currentEmail = this.authService.currentUser()?.email?.toLowerCase();
+    if (currentEmail && email === currentEmail) {
+      this.shareFolderError.set('No puedes compartir la carpeta contigo mismo');
+      return;
+    }
+
+    this.isSharingFolder.set(true);
+    this.shareFolderError.set(null);
+
+    this.resourceService.shareResource(folder._id, { email, permission }).subscribe({
+      next: (res) => {
+        this.isSharingFolder.set(false);
+        if (res.data?.sharedWith) {
+          const updated = (res.data.sharedWith || []).map((entry: any) => ({
+            userId:
+              typeof entry.userId === 'object' && entry.userId !== null
+                ? (entry.userId as any)._id
+                : entry.userId,
+            userName:
+              typeof entry.userId === 'object' && entry.userId !== null
+                ? `${(entry.userId as any).name || ''} ${(entry.userId as any).lastName || ''}`.trim()
+                : entry.userName || 'Usuario',
+            userEmail:
+              typeof entry.userId === 'object' && entry.userId !== null
+                ? (entry.userId as any).email
+                : entry.userEmail || email,
+            permission: entry.permission,
+          }));
+          this.folderSharedUsers.set(updated);
+          this.resourceService.updateFolderSharedWith(folder._id, updated);
+        } else {
+          // Actualización de respaldo
+          const updated = [
+            ...this.folderSharedUsers().filter(
+              (u) => (u.userEmail || '').toLowerCase() !== email,
+            ),
+            {
+              userId: res.data?.targetUser?.userId || `temp-${Date.now()}`,
+              userName: res.data?.targetUser?.userName || email.split('@')[0],
+              userEmail: email,
+              permission,
+            },
+          ];
+          this.folderSharedUsers.set(updated);
+          this.resourceService.updateFolderSharedWith(folder._id, updated);
+        }
+        this.folderInviteEmail.set('');
+        this.showNotification(`Carpeta "${folder.name}" compartida exitosamente con ${email}`);
+      },
+      error: (err) => {
+        this.isSharingFolder.set(false);
+        const msg = err?.error?.mensaje || 'No se pudo compartir la carpeta con el usuario';
+        this.shareFolderError.set(msg);
+      },
+    });
+  }
+
+  updateFolderCollaboratorPermission(userId: string, permission: ResourcePermission): void {
+    const folder = this.selectedFolderToShare();
+    if (!folder) return;
+
+    const entry = this.folderSharedUsers().find((u) => u.userId === userId);
+    if (!entry || !entry.userEmail) return;
+
+    this.resourceService.shareResource(folder._id, { email: entry.userEmail, permission }).subscribe({
+      next: (res) => {
+        if (res.data?.sharedWith) {
+          const updated = (res.data.sharedWith || []).map((e: any) => ({
+            userId:
+              typeof e.userId === 'object' && e.userId !== null ? (e.userId as any)._id : e.userId,
+            userName:
+              typeof e.userId === 'object' && e.userId !== null
+                ? `${(e.userId as any).name || ''} ${(e.userId as any).lastName || ''}`.trim()
+                : e.userName || 'Usuario',
+            userEmail:
+              typeof e.userId === 'object' && e.userId !== null
+                ? (e.userId as any).email
+                : e.userEmail || '',
+            permission: e.permission,
+          }));
+          this.folderSharedUsers.set(updated);
+          this.resourceService.updateFolderSharedWith(folder._id, updated);
+        } else {
+          const updated = this.folderSharedUsers().map((u) =>
+            u.userId === userId ? { ...u, permission } : u,
+          );
+          this.folderSharedUsers.set(updated);
+          this.resourceService.updateFolderSharedWith(folder._id, updated);
+        }
+        this.showNotification('Nivel de permiso de la carpeta actualizado');
+      },
+      error: (err) => {
+        const msg = err?.error?.mensaje || 'No se pudo actualizar el permiso del usuario';
+        this.showNotification(msg);
+      },
+    });
+  }
+
+  removeFolderCollaborator(userId: string): void {
+    const folder = this.selectedFolderToShare();
+    if (!folder) return;
+
+    this.resourceService.removeSharedUser(folder._id, userId).subscribe({
+      next: (res) => {
+        let updated: SharedUserEntry[];
+        if (res.data?.sharedWith) {
+          updated = (res.data.sharedWith || []).map((e: any) => ({
+            userId:
+              typeof e.userId === 'object' && e.userId !== null ? (e.userId as any)._id : e.userId,
+            userName:
+              typeof e.userId === 'object' && e.userId !== null
+                ? `${(e.userId as any).name || ''} ${(e.userId as any).lastName || ''}`.trim()
+                : e.userName || 'Usuario',
+            userEmail:
+              typeof e.userId === 'object' && e.userId !== null
+                ? (e.userId as any).email
+                : e.userEmail || '',
+            permission: e.permission,
+          }));
+        } else {
+          updated = this.folderSharedUsers().filter((u) => u.userId !== userId);
+        }
+        this.folderSharedUsers.set(updated);
+        this.resourceService.updateFolderSharedWith(folder._id, updated);
+        this.showNotification('Acceso a la carpeta revocado exitosamente');
+      },
+      error: (err) => {
+        const msg = err?.error?.mensaje || 'No se pudo revocar el acceso del usuario a la carpeta';
+        this.showNotification(msg);
+      },
+    });
+  }
+
+  getInitials(name?: string): string {
+    if (!name) return 'U';
+    const parts = name.trim().split(/\s+/);
+    if (parts.length >= 2) {
+      return (parts[0][0] + parts[1][0]).toUpperCase();
+    }
+    return name.slice(0, 2).toUpperCase();
   }
 
   // DESCARGAR ARCHIVO (solo archivos que no estén en la papelera)
