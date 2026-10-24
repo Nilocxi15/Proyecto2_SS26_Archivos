@@ -40,8 +40,15 @@ export class StorageReports implements OnInit {
   readonly dateRangeCurrentPage = signal<number>(1);
   readonly dateRangePageSize = signal<number>(5);
 
-  // Colección reactiva para futuro reporte de operaciones
-  readonly filesByOperations = signal<FileOperationsItem[]>([]);
+  // Estado reactivo vinculado al servicio para archivos con mayor cantidad de operaciones
+  readonly filesByOperations = this.reportService.filesByOperations;
+  readonly isLoadingFilesByOperations = this.reportService.isLoadingFilesByOperations;
+  readonly lastUpdatedFilesByOperationsAt = this.reportService.lastUpdatedFilesByOperationsAt;
+
+  // Estado de paginación y búsqueda para el reporte de operaciones
+  readonly operationsSearchTerm = signal<string>('');
+  readonly operationsCurrentPage = signal<number>(1);
+  readonly operationsPageSize = signal<number>(5);
 
   // Totales computados para KPIs del reporte por tipo
   readonly totalFilesCount = computed(() =>
@@ -119,6 +126,73 @@ export class StorageReports implements OnInit {
     return pages;
   });
 
+  // Lista de archivos con operaciones filtrada por búsqueda reactiva
+  readonly filteredOperationsFiles = computed(() => {
+    const term = this.operationsSearchTerm().toLowerCase().trim();
+    const list = this.filesByOperations();
+    if (!term) return list;
+    return list.filter(
+      (file) =>
+        (file.fileName || '').toLowerCase().includes(term) ||
+        (file.ownerName || '').toLowerCase().includes(term) ||
+        (file.lastOperationType || '').toLowerCase().includes(term) ||
+        (file.extension || '').toLowerCase().includes(term),
+    );
+  });
+
+  // Total de páginas computado para operaciones
+  readonly totalOperationsPages = computed(() => {
+    const count = this.filteredOperationsFiles().length;
+    const size = this.operationsPageSize();
+    return Math.ceil(count / size) || 1;
+  });
+
+  // Elementos correspondientes a la página activa en operaciones
+  readonly paginatedOperationsFiles = computed(() => {
+    const total = this.totalOperationsPages();
+    const page = Math.min(Math.max(1, this.operationsCurrentPage()), total);
+    const size = this.operationsPageSize();
+    const start = (page - 1) * size;
+    return this.filteredOperationsFiles().slice(start, start + size);
+  });
+
+  // Índices para resumen de paginación de operaciones
+  readonly operationsStartIndex = computed(() => {
+    if (this.filteredOperationsFiles().length === 0) return 0;
+    return (this.operationsCurrentPage() - 1) * this.operationsPageSize() + 1;
+  });
+
+  readonly operationsEndIndex = computed(() => {
+    return Math.min(
+      this.operationsCurrentPage() * this.operationsPageSize(),
+      this.filteredOperationsFiles().length,
+    );
+  });
+
+  // Botones de página visibles para operaciones
+  readonly visibleOperationsPagesArray = computed(() => {
+    const total = this.totalOperationsPages();
+    const current = this.operationsCurrentPage();
+    const pages: number[] = [];
+
+    let start = Math.max(1, current - 2);
+    let end = Math.min(total, start + 4);
+
+    if (end - start < 4) {
+      start = Math.max(1, end - 4);
+    }
+
+    for (let p = start; p <= end; p++) {
+      pages.push(p);
+    }
+    return pages;
+  });
+
+  // Suma total de operaciones registradas computada
+  readonly totalOperationsSum = computed(() =>
+    this.filesByOperations().reduce((acc, curr) => acc + curr.operationsCount, 0),
+  );
+
   // Estados computados según la pestaña activa
   readonly currentIsLoading = computed(() => {
     if (this.activeSubReport() === 'by-type') {
@@ -126,6 +200,9 @@ export class StorageReports implements OnInit {
     }
     if (this.activeSubReport() === 'by-date-range') {
       return this.isLoadingDateRange();
+    }
+    if (this.activeSubReport() === 'by-operations') {
+      return this.isLoadingFilesByOperations();
     }
     return false;
   });
@@ -136,6 +213,9 @@ export class StorageReports implements OnInit {
     }
     if (this.activeSubReport() === 'by-date-range') {
       return this.lastUpdatedDateRangeAt();
+    }
+    if (this.activeSubReport() === 'by-operations') {
+      return this.lastUpdatedFilesByOperationsAt();
     }
     return null;
   });
@@ -158,12 +238,22 @@ export class StorageReports implements OnInit {
       });
   }
 
+  loadFilesByOperations(): void {
+    this.reportService.getFilesByOperations().subscribe({
+      next: () => {
+        this.operationsCurrentPage.set(1);
+      },
+    });
+  }
+
   switchSubReport(view: StorageReportView): void {
     this.activeSubReport.set(view);
     if (view === 'by-type' && this.filesByType().length === 0) {
       this.loadFilesByType();
     } else if (view === 'by-date-range' && this.filesByDateRange().length === 0) {
       this.loadFilesByDateRange();
+    } else if (view === 'by-operations' && this.filesByOperations().length === 0) {
+      this.loadFilesByOperations();
     }
   }
 
@@ -172,6 +262,8 @@ export class StorageReports implements OnInit {
       this.loadFilesByType();
     } else if (this.activeSubReport() === 'by-date-range') {
       this.loadFilesByDateRange();
+    } else if (this.activeSubReport() === 'by-operations') {
+      this.loadFilesByOperations();
     }
   }
 
@@ -200,6 +292,48 @@ export class StorageReports implements OnInit {
   onDateRangeSearch(term: string): void {
     this.dateRangeSearchTerm.set(term);
     this.dateRangeCurrentPage.set(1);
+  }
+
+  goToOperationsPage(page: number): void {
+    if (page >= 1 && page <= this.totalOperationsPages()) {
+      this.operationsCurrentPage.set(page);
+    }
+  }
+
+  setOperationsPageSize(size: any): void {
+    this.operationsPageSize.set(Number(size));
+    this.operationsCurrentPage.set(1);
+  }
+
+  onOperationsSearch(term: string): void {
+    this.operationsSearchTerm.set(term);
+    this.operationsCurrentPage.set(1);
+  }
+
+  clearOperationsSearch(): void {
+    this.operationsSearchTerm.set('');
+    this.operationsCurrentPage.set(1);
+  }
+
+  getActionLabel(action?: string): string {
+    switch (action) {
+      case 'crear':
+        return 'Creación';
+      case 'modificar':
+        return 'Modificación';
+      case 'mover':
+        return 'Movimiento';
+      case 'eliminar':
+        return 'Eliminación';
+      case 'restaurar':
+        return 'Restauración';
+      case 'compartir':
+        return 'Compartición';
+      case 'descargar':
+        return 'Descarga';
+      default:
+        return action || 'Operación';
+    }
   }
 
   formatBytes(bytes?: number): string {

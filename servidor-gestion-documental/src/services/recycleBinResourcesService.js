@@ -1,6 +1,7 @@
 const Folder = require("../models/Folder");
 const File = require("../models/File");
 const mongoose = require("mongoose");
+const { logActivity } = require("./activityLogService");
 
 /**
  * Obtiene los archivos y carpetas en la papelera (isTrash: true) del usuario autenticado
@@ -169,6 +170,17 @@ const moveToTrashOrRestore = async (userId, resourceId, moveToTrash) => {
       ),
     ]);
 
+    logActivity({
+      userId,
+      action: isTrashBool ? "eliminar" : "restaurar",
+      resourceType: "carpeta",
+      resourceId: folder._id,
+      details: {
+        name: folder.name,
+        ...(isTrashBool ? { moveToTrash: true } : { restoredFromTrash: true }),
+      },
+    });
+
     return { type: "folder", resource: folder };
   }
 
@@ -182,6 +194,18 @@ const moveToTrashOrRestore = async (userId, resourceId, moveToTrash) => {
     file.isTrash = moveToTrash;
     file.trashedAt = moveToTrash ? new Date() : null;
     await file.save();
+
+    logActivity({
+      userId,
+      action: isTrashBool ? "eliminar" : "restaurar",
+      resourceType: "archivo",
+      resourceId: file._id,
+      details: {
+        name: file.name,
+        ...(isTrashBool ? { moveToTrash: true } : { restoredFromTrash: true }),
+      },
+    });
+
     return { type: "file", resource: file };
   }
 

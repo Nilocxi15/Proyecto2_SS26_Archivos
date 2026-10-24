@@ -2,6 +2,7 @@ const Folder = require("../models/Folder");
 const File = require("../models/File");
 const User = require("../models/User");
 const mongoose = require("mongoose");
+const { logActivity } = require("./activityLogService");
 
 /**
  * Determina el nivel de acceso efectivo del usuario sobre un archivo
@@ -368,6 +369,18 @@ const updateFile = async (userId, fileId, { name, content, tags }) => {
 
   await file.save();
 
+  logActivity({
+    userId,
+    action: "modificar",
+    resourceType: "archivo",
+    resourceId: file._id,
+    details: {
+      name: file.name,
+      field: name !== undefined ? "name" : "content",
+      comment: "Actualización de archivo",
+    },
+  });
+
   return await getFileDetails(userId, file._id);
 };
 
@@ -513,6 +526,17 @@ const getFileForDownload = async (userId, fileId) => {
 
   const mimeType =
     ext === "md" ? "text/markdown; charset=utf-8" : "text/plain; charset=utf-8";
+
+  logActivity({
+    userId,
+    action: "descargar",
+    resourceType: "archivo",
+    resourceId: file._id,
+    details: {
+      name: fileName,
+      extension: ext,
+    },
+  });
 
   return {
     fileName,

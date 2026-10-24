@@ -3,6 +3,7 @@ const File = require("../models/File");
 const User = require("../models/User");
 const mongoose = require("mongoose");
 const { resolveFolderPermission } = require("./resourceService");
+const { logActivity } = require("./activityLogService");
 
 /**
  * Formatea un documento de carpeta asegurando que sharedWith incluya nombres y correos de los usuarios
@@ -185,6 +186,14 @@ const createFolder = async (userId, { name, parentId = null }) => {
     sharedWith: [],
   });
 
+  logActivity({
+    userId,
+    action: "crear",
+    resourceType: "carpeta",
+    resourceId: newFolder._id,
+    details: { name: newFolder.name, path: newFolder.path },
+  });
+
   return newFolder;
 };
 
@@ -279,6 +288,18 @@ const createFile = async (
     tags: Array.isArray(tags) ? tags : [],
     sharedWith: [],
     comments: [],
+  });
+
+  logActivity({
+    userId,
+    action: "crear",
+    resourceType: "archivo",
+    resourceId: newFile._id,
+    details: {
+      name: newFile.name,
+      extension: newFile.extension,
+      fileSizeBytes: newFile.sizeBytes,
+    },
   });
 
   const owner = await User.findById(targetOwnerId)
@@ -419,6 +440,19 @@ const moveFile = async (userId, fileId, targetFolderId) => {
 
   file.folderId = cleanTargetFolderId;
   await file.save();
+
+  logActivity({
+    userId,
+    action: "mover",
+    resourceType: "archivo",
+    resourceId: file._id,
+    details: {
+      name: file.name,
+      fromFolderId: currentFolderStr,
+      toFolderId: targetFolderStr,
+      toFolderName: targetPathText,
+    },
+  });
 
   return file;
 };

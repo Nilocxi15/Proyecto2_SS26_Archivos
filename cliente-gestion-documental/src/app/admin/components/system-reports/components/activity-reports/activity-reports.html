@@ -1,1 +1,237 @@
-<p>activity-reports works!</p>
+<div class="activity-reports-view">
+  <!-- Barra de Selección de Subreporte y Botón Actualizar -->
+  <div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-3">
+    <div class="d-flex flex-wrap align-items-center gap-2">
+      <button
+        type="button"
+        class="btn btn-sm rounded-pill px-3 fw-medium"
+        [class.btn-primary]="activeSubReport() === 'user-activity-range'"
+        [class.btn-outline-secondary]="activeSubReport() !== 'user-activity-range'"
+        (click)="switchSubReport('user-activity-range')"
+      >
+        Historial de actividad de un usuario dentro de un rango de fechas
+      </button>
+
+      <button
+        type="button"
+        class="btn btn-sm rounded-pill px-3 fw-medium"
+        [class.btn-primary]="activeSubReport() === 'operations-by-type'"
+        [class.btn-outline-secondary]="activeSubReport() !== 'operations-by-type'"
+        (click)="switchSubReport('operations-by-type')"
+      >
+        Cantidad de operaciones agrupadas por tipo
+      </button>
+
+      <button
+        type="button"
+        class="btn btn-sm rounded-pill px-3 fw-medium"
+        [class.btn-primary]="activeSubReport() === 'operations-by-period'"
+        [class.btn-outline-secondary]="activeSubReport() !== 'operations-by-period'"
+        (click)="switchSubReport('operations-by-period')"
+      >
+        Cantidad de operaciones realizadas agrupadas por período
+      </button>
+
+      <button
+        type="button"
+        class="btn btn-sm rounded-pill px-3 fw-medium"
+        [class.btn-primary]="activeSubReport() === 'top-actions'"
+        [class.btn-outline-secondary]="activeSubReport() !== 'top-actions'"
+        (click)="switchSubReport('top-actions')"
+      >
+        Principales acciones realizadas dentro del sistema
+      </button>
+    </div>
+
+    <div class="d-flex align-items-center gap-3">
+      @if (currentLastUpdatedAt()) {
+        <div class="text-muted small">
+          Última consulta: {{ formatDate(currentLastUpdatedAt()?.toISOString()) }}
+        </div>
+      }
+
+      <button
+        type="button"
+        class="btn btn-outline-primary btn-sm rounded-pill px-3 d-flex align-items-center gap-1"
+        [disabled]="currentIsLoading()"
+        (click)="refreshActiveReport()"
+        title="Actualizar datos del reporte activo"
+      >
+        <i
+          class="bi bi-arrow-clockwise"
+          [class.spinner-border]="currentIsLoading()"
+          [class.spinner-border-sm]="currentIsLoading()"
+        ></i>
+        <span>Actualizar</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- SUBREPORTE 1: Historial de actividad de un usuario dentro de un rango de fechas -->
+  @if (activeSubReport() === 'user-activity-range') {
+    <section class="subreport-content">
+      <div class="card border-0 shadow-sm rounded-3 p-4 bg-white mb-4">
+        <div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-3">
+          <div class="d-flex align-items-center gap-3">
+            <div class="subreport-icon-box bg-primary-subtle text-primary">
+              <i class="bi bi-person-lines-fill"></i>
+            </div>
+            <div>
+              <h2 class="h5 fw-bold text-dark mb-1">
+                Historial de actividad de un usuario dentro de un rango de fechas
+              </h2>
+              <p class="text-muted small mb-0">
+                Consulta y trazabilidad cronológica de todas las acciones efectuadas por un usuario
+                seleccionado en un período delimitado.
+              </p>
+            </div>
+          </div>
+          <span class="badge bg-primary-subtle text-primary px-3 py-2 rounded-pill small fw-medium">
+            0 actividades registradas
+          </span>
+        </div>
+
+        <div class="text-center py-5 px-3 border rounded-3 bg-light">
+          <div
+            class="d-inline-flex align-items-center justify-content-center empty-icon-circle rounded-circle mb-3"
+            style="width: 64px; height: 64px"
+          >
+            <i class="bi bi-calendar-range text-muted fs-2"></i>
+          </div>
+          <h3 class="h6 fw-bold text-dark mb-1">
+            Pestaña lista para desarrollo de filtros y tabla
+          </h3>
+          <p class="text-muted small mb-0" style="max-width: 500px; margin: 0 auto">
+            Sección configurada con selector de usuario, controles de fecha inicial y final, y
+            visualización del registro cronológico de eventos.
+          </p>
+        </div>
+      </div>
+    </section>
+  }
+
+  <!-- SUBREPORTE 2: Cantidad de operaciones agrupadas por tipo -->
+  @if (activeSubReport() === 'operations-by-type') {
+    <section class="subreport-content">
+      <div class="card border-0 shadow-sm rounded-3 p-4 bg-white mb-4">
+        <div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-3">
+          <div class="d-flex align-items-center gap-3">
+            <div class="subreport-icon-box bg-info-subtle text-info">
+              <i class="bi bi-pie-chart-fill"></i>
+            </div>
+            <div>
+              <h2 class="h5 fw-bold text-dark mb-1">Cantidad de operaciones agrupadas por tipo</h2>
+              <p class="text-muted small mb-0">
+                Distribución cuantitativa y porcentaje de las operaciones realizadas en el sistema
+                clasificadas por tipo de acción.
+              </p>
+            </div>
+          </div>
+          <span class="badge bg-info-subtle text-info px-3 py-2 rounded-pill small fw-medium">
+            0 operaciones registradas
+          </span>
+        </div>
+
+        <div class="text-center py-5 px-3 border rounded-3 bg-light">
+          <div
+            class="d-inline-flex align-items-center justify-content-center empty-icon-circle rounded-circle mb-3"
+            style="width: 64px; height: 64px"
+          >
+            <i class="bi bi-pie-chart text-muted fs-2"></i>
+          </div>
+          <h3 class="h6 fw-bold text-dark mb-1">
+            Pestaña lista para métricas por tipo de operación
+          </h3>
+          <p class="text-muted small mb-0" style="max-width: 500px; margin: 0 auto">
+            Sección configurada para mostrar resumen, tarjetas de métricas y tabla consolidada de
+            acciones (crear, modificar, mover, eliminar, restaurar, compartir, descargar).
+          </p>
+        </div>
+      </div>
+    </section>
+  }
+
+  <!-- SUBREPORTE 3: Cantidad de operaciones realizadas agrupadas por período -->
+  @if (activeSubReport() === 'operations-by-period') {
+    <section class="subreport-content">
+      <div class="card border-0 shadow-sm rounded-3 p-4 bg-white mb-4">
+        <div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-3">
+          <div class="d-flex align-items-center gap-3">
+            <div class="subreport-icon-box bg-warning-subtle text-warning">
+              <i class="bi bi-calendar3-range-fill"></i>
+            </div>
+            <div>
+              <h2 class="h5 fw-bold text-dark mb-1">
+                Cantidad de operaciones realizadas agrupadas por período
+              </h2>
+              <p class="text-muted small mb-0">
+                Evolución y volumen temporal de operaciones organizadas por intervalos de tiempo
+                (diario, mensual o personalizado).
+              </p>
+            </div>
+          </div>
+          <span class="badge bg-warning-subtle text-warning px-3 py-2 rounded-pill small fw-medium">
+            0 operaciones registradas
+          </span>
+        </div>
+
+        <div class="text-center py-5 px-3 border rounded-3 bg-light">
+          <div
+            class="d-inline-flex align-items-center justify-content-center empty-icon-circle rounded-circle mb-3"
+            style="width: 64px; height: 64px"
+          >
+            <i class="bi bi-graph-up text-muted fs-2"></i>
+          </div>
+          <h3 class="h6 fw-bold text-dark mb-1">Pestaña lista para análisis temporal</h3>
+          <p class="text-muted small mb-0" style="max-width: 500px; margin: 0 auto">
+            Sección configurada para selector de granularidad de período, filtros de rango de fechas
+            y tabla comparativa de volumen de actividad.
+          </p>
+        </div>
+      </div>
+    </section>
+  }
+
+  <!-- SUBREPORTE 4: Principales acciones realizadas dentro del sistema -->
+  @if (activeSubReport() === 'top-actions') {
+    <section class="subreport-content">
+      <div class="card border-0 shadow-sm rounded-3 p-4 bg-white mb-4">
+        <div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-3">
+          <div class="d-flex align-items-center gap-3">
+            <div class="subreport-icon-box bg-success-subtle text-success">
+              <i class="bi bi-trophy-fill"></i>
+            </div>
+            <div>
+              <h2 class="h5 fw-bold text-dark mb-1">
+                Principales acciones realizadas dentro del sistema
+              </h2>
+              <p class="text-muted small mb-0">
+                Clasificación y ranking de las acciones más recurrentes y relevantes ejecutadas en
+                la plataforma.
+              </p>
+            </div>
+          </div>
+          <span class="badge bg-success-subtle text-success px-3 py-2 rounded-pill small fw-medium">
+            0 acciones registradas
+          </span>
+        </div>
+
+        <div class="text-center py-5 px-3 border rounded-3 bg-light">
+          <div
+            class="d-inline-flex align-items-center justify-content-center empty-icon-circle rounded-circle mb-3"
+            style="width: 64px; height: 64px"
+          >
+            <i class="bi bi-bar-chart-steps text-muted fs-2"></i>
+          </div>
+          <h3 class="h6 fw-bold text-dark mb-1">
+            Pestaña lista para ranking de principales acciones
+          </h3>
+          <p class="text-muted small mb-0" style="max-width: 500px; margin: 0 auto">
+            Sección configurada para listar las principales acciones con mayor concurrencia en el
+            sistema y métricas asociadas.
+          </p>
+        </div>
+      </div>
+    </section>
+  }
+</div>
