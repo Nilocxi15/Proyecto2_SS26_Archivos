@@ -2,6 +2,31 @@ const Folder = require("../models/Folder");
 const File = require("../models/File");
 const User = require("../models/User");
 const mongoose = require("mongoose");
+const { resolveFolderPermission } = require("./resourceService");
+
+/**
+ * Formatea un documento de carpeta asegurando que sharedWith incluya nombres y correos de los usuarios
+ */
+const formatFolderDoc = (folder) => {
+  if (!folder) return null;
+  const formattedSharedWith = (folder.sharedWith || []).map((s) => ({
+    userId: s.userId?._id
+      ? s.userId._id.toString()
+      : s.userId
+        ? s.userId.toString()
+        : "",
+    userName: s.userId?.name
+      ? `${s.userId.name || ""} ${s.userId.lastName || ""}`.trim()
+      : "Usuario",
+    userEmail: s.userId?.email || "",
+    permission: s.permission,
+  }));
+
+  return {
+    ...folder,
+    sharedWith: formattedSharedWith,
+  };
+};
 
 /**
  * Obtiene los archivos y carpetas del usuario según el directorio actual (raíz o dentro de una carpeta)
@@ -23,7 +48,9 @@ const getMyFiles = async (userId, folderId = null) => {
       _id: targetFolderId,
       ownerId: userId,
       isTrash: false,
-    });
+    })
+      .populate("sharedWith.userId", "name lastName email")
+      .lean();
 
     if (!currentFolder) {
       const error = new Error(
@@ -64,6 +91,7 @@ const getMyFiles = async (userId, folderId = null) => {
       parentId: targetFolderId,
       isTrash: false,
     })
+      .populate("sharedWith.userId", "name lastName email")
       .sort({ name: 1 })
       .lean(),
 
@@ -78,29 +106,29 @@ const getMyFiles = async (userId, folderId = null) => {
   ]);
 
   return {
-    currentFolder,
+    currentFolder: formatFolderDoc(currentFolder),
     breadcrumbs,
-    folders,
+    folders: folders.map(formatFolderDoc),
     files,
   };
 };
 
 /**
- * Crea una nueva carpeta para el usuario
+ * Crea una nueva carpeta para el usuario o dentro de una carpeta compartida con permiso de edición
  * @param {string|mongoose.Types.ObjectId} userId
  * @param {{name: string, parentId?: string|null}} data
  */
 const createFolder = async (userId, { name, parentId = null }) => {
-  const cleanName = name;
+  const cleanName = name.trim();
   let cleanParentId = null;
   let path = `/${cleanName}`;
   let ancestors = [];
+  let targetOwnerId = userId;
 
   if (parentId && parentId !== "null" && parentId !== "root") {
     cleanParentId = new mongoose.Types.ObjectId(parentId);
     const parentFolder = await Folder.findOne({
       _id: cleanParentId,
-      ownerId: userId,
       isTrash: false,
     });
     if (!parentFolder) {
@@ -111,13 +139,30 @@ const createFolder = async (userId, { name, parentId = null }) => {
       throw error;
     }
 
+    const userObjectId = new mongoose.Types.ObjectId(userId);
+    const isOwner = parentFolder.ownerId.toString() === userObjectId.toString();
+    if (!isOwner) {
+      const permission = await resolveFolderPermission(
+        userObjectId,
+        parentFolder,
+      );
+      if (permission !== "edicion") {
+        const error = new Error(
+          "No tienes permisos de edición para crear carpetas en esta ubicación compartida",
+        );
+        error.statusCode = 403;
+        throw error;
+      }
+    }
+
     path = `${parentFolder.path}/${cleanName}`;
     ancestors = [...parentFolder.ancestors, parentFolder._id];
+    targetOwnerId = parentFolder.ownerId;
   }
 
   // Comprobar que no exista otra carpeta con el mismo nombre en el mismo nivel
   const existingFolder = await Folder.findOne({
-    ownerId: userId,
+    ownerId: targetOwnerId,
     parentId: cleanParentId,
     name: cleanName,
     isTrash: false,
@@ -133,7 +178,7 @@ const createFolder = async (userId, { name, parentId = null }) => {
 
   const newFolder = await Folder.create({
     name: cleanName,
-    ownerId: userId,
+    ownerId: targetOwnerId,
     parentId: cleanParentId,
     path,
     ancestors,
@@ -171,11 +216,12 @@ const createFile = async (
   }
 
   let cleanFolderId = null;
+  let targetOwnerId = userObjectId;
+
   if (folderId && folderId !== "null" && folderId !== "root") {
     cleanFolderId = new mongoose.Types.ObjectId(folderId);
     const parentFolder = await Folder.findOne({
       _id: cleanFolderId,
-      ownerId: userObjectId,
       isTrash: false,
     });
     if (!parentFolder) {
@@ -185,11 +231,28 @@ const createFile = async (
       error.statusCode = 404;
       throw error;
     }
+
+    const isOwner = parentFolder.ownerId.toString() === userObjectId.toString();
+    if (!isOwner) {
+      const permission = await resolveFolderPermission(
+        userObjectId,
+        parentFolder,
+      );
+      if (permission !== "edicion") {
+        const error = new Error(
+          "No tienes permisos de edición para crear archivos en esta carpeta compartida",
+        );
+        error.statusCode = 403;
+        throw error;
+      }
+    }
+
+    targetOwnerId = parentFolder.ownerId;
   }
 
   // Comprobar duplicado en la misma ubicación
   const existingFile = await File.findOne({
-    ownerId: userObjectId,
+    ownerId: targetOwnerId,
     folderId: cleanFolderId,
     name: cleanName,
     isTrash: false,
@@ -212,13 +275,13 @@ const createFile = async (
     sizeBytes,
     content: fileContent,
     folderId: cleanFolderId,
-    ownerId: userObjectId,
+    ownerId: targetOwnerId,
     tags: Array.isArray(tags) ? tags : [],
     sharedWith: [],
     comments: [],
   });
 
-  const owner = await User.findById(userObjectId)
+  const owner = await User.findById(targetOwnerId)
     .select("name lastName email")
     .lean();
 
@@ -243,7 +306,6 @@ const createFile = async (
     updatedAt: newFile.updatedAt,
   };
 };
-
 
 /**
  * Obtiene todas las carpetas activas del usuario ordenadas jerárquicamente por ruta
@@ -279,7 +341,9 @@ const moveFile = async (userId, fileId, targetFolderId) => {
   });
 
   if (!file) {
-    const error = new Error("El archivo no existe o no tienes permisos sobre él");
+    const error = new Error(
+      "El archivo no existe o no tienes permisos sobre él",
+    );
     error.statusCode = 404;
     throw error;
   }
@@ -287,11 +351,14 @@ const moveFile = async (userId, fileId, targetFolderId) => {
   let cleanTargetFolderId = null;
   let targetPathText = "la raíz (/)";
 
-  if (targetFolderId && targetFolderId !== "null" && targetFolderId !== "root") {
+  if (
+    targetFolderId &&
+    targetFolderId !== "null" &&
+    targetFolderId !== "root"
+  ) {
     cleanTargetFolderId = new mongoose.Types.ObjectId(targetFolderId);
     const targetFolder = await Folder.findOne({
       _id: cleanTargetFolderId,
-      ownerId: userObjectId,
       isTrash: false,
     });
 
@@ -301,6 +368,21 @@ const moveFile = async (userId, fileId, targetFolderId) => {
       );
       error.statusCode = 404;
       throw error;
+    }
+
+    const isOwner = targetFolder.ownerId.toString() === userObjectId.toString();
+    if (!isOwner) {
+      const permission = await resolveFolderPermission(
+        userObjectId,
+        targetFolder,
+      );
+      if (permission !== "edicion") {
+        const error = new Error(
+          "No tienes permisos de edición en la carpeta de destino seleccionada",
+        );
+        error.statusCode = 403;
+        throw error;
+      }
     }
     targetPathText = targetFolder.path || targetFolder.name;
   }
@@ -348,4 +430,3 @@ module.exports = {
   getAllFolders,
   moveFile,
 };
-

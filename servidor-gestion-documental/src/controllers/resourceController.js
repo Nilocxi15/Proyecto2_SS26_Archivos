@@ -50,6 +50,26 @@ const createFolder = async (req, res, next) => {
 };
 
 /**
+ * GET /api/resources/folders/:id
+ * Obtiene el detalle completo de una carpeta (metadatos, colaboradores y conteo de elementos)
+ */
+const getFolderDetails = async (req, res, next) => {
+  try {
+    const userId = req.user._id || req.user.id;
+    const { id } = req.params;
+
+    const folder = await resourceService.getFolderDetails(userId, id);
+
+    return res.status(200).json({
+      status: "success",
+      data: folder,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
  * POST /api/resources/files
  * Registra y sube un nuevo archivo .txt o .md
  */
@@ -384,6 +404,7 @@ module.exports = {
   deleteResource,
   downloadFile,
   createFolder,
+  getFolderDetails,
   createFile,
   getFileDetails,
   updateFile,

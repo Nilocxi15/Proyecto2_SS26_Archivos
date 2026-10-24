@@ -91,6 +91,14 @@ router.post(
   resourceController.createFolder,
 );
 
+// Detalle completo de una carpeta (metadatos, colaboradores y conteo)
+router.get(
+  "/folders/:id",
+  protectRoutes,
+  validarDto(ResourceIdParamDto, "params"),
+  resourceController.getFolderDetails,
+);
+
 // Mover un archivo a otra carpeta de destino o a la raíz
 router.put(
   "/files/:id/move",
