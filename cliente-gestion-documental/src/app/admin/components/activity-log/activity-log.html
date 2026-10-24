@@ -1,1 +1,568 @@
-<p>activity-log works!</p>
+<div class="activity-log-container">
+  <!-- ENCABEZADO DE LA SECCIÓN -->
+  <header class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-3">
+    <div>
+      <div class="d-flex align-items-center gap-2 mb-1">
+        <i class="bi bi-clock-history text-primary fs-3"></i>
+        <h1 class="h3 fw-bold text-dark mb-0">Historial de Actividad y Auditoría</h1>
+      </div>
+      <p class="text-muted small mb-0">
+        Monitoreo y consulta de las principales operaciones efectuadas por usuarios sobre archivos,
+        carpetas y recursos compartidos.
+      </p>
+    </div>
+
+    <!-- Botón de actualización y última fecha -->
+    <div class="d-flex align-items-center gap-3">
+      @if (lastUpdatedAt()) {
+        <span class="text-muted small d-none d-md-inline">
+          <i class="bi bi-arrow-repeat me-1"></i>Actualizado: {{ formatDate(lastUpdatedAt()!) }}
+        </span>
+      }
+      <button
+        type="button"
+        class="btn btn-outline-primary d-flex align-items-center gap-2 rounded-pill px-3 py-2 shadow-sm"
+        (click)="refreshLogs()"
+        [disabled]="isLoading()"
+      >
+        <i class="bi bi-arrow-clockwise" [class.spin-animation]="isLoading()"></i>
+        <span>Actualizar</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- TARJETAS DE MÉTRICAS (KPIS) -->
+  <section class="row g-3 mb-4">
+    <!-- Total Operaciones -->
+    <div class="col-12 col-sm-6 col-xl-3">
+      <div class="card border-0 shadow-sm kpi-card bg-white h-100 p-3">
+        <div class="d-flex align-items-center justify-content-between">
+          <div>
+            <span class="text-muted small fw-medium text-uppercase d-block mb-1">Total Actividades</span>
+            <h2 class="h3 fw-bold text-dark mb-0">{{ totalCount() }}</h2>
+            <small class="text-muted">{{ uniqueUsersCount() }} usuarios activos</small>
+          </div>
+          <div class="kpi-icon-box bg-primary-subtle text-primary">
+            <i class="bi bi-activity"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Actividades en Archivos -->
+    <div class="col-12 col-sm-6 col-xl-3">
+      <div class="card border-0 shadow-sm kpi-card bg-white h-100 p-3">
+        <div class="d-flex align-items-center justify-content-between">
+          <div>
+            <span class="text-muted small fw-medium text-uppercase d-block mb-1">En Archivos</span>
+            <h2 class="h3 fw-bold text-dark mb-0">{{ filesCount() }}</h2>
+            <small class="text-muted">Creación, edición, descarga</small>
+          </div>
+          <div class="kpi-icon-box bg-info-subtle text-info">
+            <i class="bi bi-file-earmark-text"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Actividades en Carpetas -->
+    <div class="col-12 col-sm-6 col-xl-3">
+      <div class="card border-0 shadow-sm kpi-card bg-white h-100 p-3">
+        <div class="d-flex align-items-center justify-content-between">
+          <div>
+            <span class="text-muted small fw-medium text-uppercase d-block mb-1">En Carpetas</span>
+            <h2 class="h3 fw-bold text-dark mb-0">{{ foldersCount() }}</h2>
+            <small class="text-muted">Estructura y directorios</small>
+          </div>
+          <div class="kpi-icon-box bg-warning-subtle text-warning">
+            <i class="bi bi-folder"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Operaciones de Compartición -->
+    <div class="col-12 col-sm-6 col-xl-3">
+      <div class="card border-0 shadow-sm kpi-card bg-white h-100 p-3">
+        <div class="d-flex align-items-center justify-content-between">
+          <div>
+            <span class="text-muted small fw-medium text-uppercase d-block mb-1">Comparticiones</span>
+            <h2 class="h3 fw-bold text-dark mb-0">{{ sharesCount() }}</h2>
+            <small class="text-muted">Permisos y colaboradores</small>
+          </div>
+          <div class="kpi-icon-box bg-success-subtle text-success">
+            <i class="bi bi-share"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- PESTAÑAS DE CATEGORÍA PRINCIPAL (Todos, Archivos, Carpetas, Compartidos) -->
+  <nav class="card border-0 shadow-sm rounded-3 mb-4 bg-white">
+    <div class="card-body p-2">
+      <ul class="nav nav-pills nav-fill gap-2" role="tablist">
+        @for (cat of categories; track cat.id) {
+          <li class="nav-item" role="presentation">
+            <button
+              type="button"
+              class="nav-link d-flex align-items-center justify-content-center gap-2 py-2 px-3 rounded-pill fw-medium"
+              [class.active]="categoryFilter() === cat.id"
+              (click)="setCategory(cat.id)"
+              role="tab"
+              [attr.aria-selected]="categoryFilter() === cat.id"
+            >
+              <i class="bi fs-5" [class]="cat.icon"></i>
+              <span>{{ cat.label }}</span>
+            </button>
+          </li>
+        }
+      </ul>
+    </div>
+  </nav>
+
+  <!-- BARRA DE FILTROS Y BÚSQUEDA -->
+  <div class="card border-0 shadow-sm rounded-3 mb-4 bg-white p-3">
+    <div class="row g-3 align-items-center">
+      <!-- Búsqueda rápida por texto libre -->
+      <div class="col-12 col-lg-4">
+        <div class="input-group">
+          <span class="input-group-text bg-light border-end-0">
+            <i class="bi bi-search text-muted"></i>
+          </span>
+          <input
+            type="text"
+            class="form-control border-start-0 bg-light"
+            placeholder="Buscar por usuario, correo, recurso..."
+            [ngModel]="searchTerm()"
+            (ngModelChange)="searchTerm.set($event); currentPage.set(1)"
+          />
+          @if (searchTerm()) {
+            <button
+              class="btn btn-light border-start-0"
+              type="button"
+              (click)="searchTerm.set(''); currentPage.set(1)"
+              title="Borrar búsqueda"
+            >
+              <i class="bi bi-x-circle text-muted"></i>
+            </button>
+          }
+        </div>
+      </div>
+
+      <!-- Selector de Operación / Acción -->
+      <div class="col-12 col-sm-6 col-lg-3">
+        <div class="input-group">
+          <span class="input-group-text bg-light border-end-0 text-muted">
+            <i class="bi bi-funnel"></i>
+          </span>
+          <select
+            class="form-select border-start-0 bg-light"
+            [ngModel]="actionFilter()"
+            (ngModelChange)="setAction($event)"
+            aria-label="Filtrar por operación"
+          >
+            @for (action of actionsList; track action.id) {
+              <option [value]="action.id">{{ action.label }}</option>
+            }
+          </select>
+        </div>
+      </div>
+
+      <!-- Rango de Fechas: Desde -->
+      <div class="col-6 col-sm-3 col-lg-2">
+        <div class="input-group">
+          <span class="input-group-text bg-light border-end-0 text-muted small p-1 px-2">Desde</span>
+          <input
+            type="date"
+            class="form-control border-start-0 bg-light px-2"
+            [ngModel]="startDate()"
+            (ngModelChange)="startDate.set($event); currentPage.set(1)"
+          />
+        </div>
+      </div>
+
+      <!-- Rango de Fechas: Hasta -->
+      <div class="col-6 col-sm-3 col-lg-2">
+        <div class="input-group">
+          <span class="input-group-text bg-light border-end-0 text-muted small p-1 px-2">Hasta</span>
+          <input
+            type="date"
+            class="form-control border-start-0 bg-light px-2"
+            [ngModel]="endDate()"
+            (ngModelChange)="endDate.set($event); currentPage.set(1)"
+          />
+        </div>
+      </div>
+
+      <!-- Botón Limpiar Filtros -->
+      <div class="col-12 col-lg-1 text-lg-end">
+        <button
+          type="button"
+          class="btn btn-outline-secondary w-100 d-flex align-items-center justify-content-center gap-1"
+          (click)="clearFilters()"
+          title="Restablecer todos los filtros"
+        >
+          <i class="bi bi-arrow-counterclockwise"></i>
+          <span class="d-lg-none">Limpiar</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- CONTENEDOR DE LA TABLA DE AUDITORÍA -->
+  <section class="card border-0 shadow-sm rounded-3 bg-white overflow-hidden mb-4">
+    <!-- Spinner de carga -->
+    @if (isLoading()) {
+      <div class="text-center py-5">
+        <div class="spinner-border text-primary mb-3" role="status">
+          <span class="visually-hidden">Cargando registros...</span>
+        </div>
+        <p class="text-muted mb-0">Cargando historial de auditoría...</p>
+      </div>
+    } @else if (filteredLogs().length === 0) {
+      <!-- Estado vacío cuando no hay registros que coincidan -->
+      <div class="text-center py-5 px-3">
+        <div
+          class="d-inline-flex align-items-center justify-content-center bg-light text-muted rounded-circle mb-3"
+          style="width: 72px; height: 72px"
+        >
+          <i class="bi bi-search fs-1"></i>
+        </div>
+        <h3 class="h5 fw-bold text-dark mb-1">No se encontraron actividades</h3>
+        <p class="text-muted small mb-3">
+          No hay registros de auditoría que coincidan con los criterios o filtros seleccionados.
+        </p>
+        <button type="button" class="btn btn-outline-primary btn-sm rounded-pill px-3" (click)="clearFilters()">
+          <i class="bi bi-x-circle me-1"></i>Limpiar filtros
+        </button>
+      </div>
+    } @else {
+      <!-- TABLA DE ACTIVIDADES -->
+      <div class="table-responsive">
+        <table class="table table-hover activity-table align-middle mb-0">
+          <thead>
+            <tr>
+              <th scope="col" class="ps-4">Usuario</th>
+              <th scope="col">Operación</th>
+              <th scope="col">Recurso Afectado</th>
+              <th scope="col">Detalle de la Acción</th>
+              <th scope="col">
+                <div class="d-flex align-items-center gap-1 cursor-pointer" (click)="sortOrder.set(sortOrder() === 'desc' ? 'asc' : 'desc')">
+                  <span>Fecha y Hora</span>
+                  <i class="bi" [class.bi-sort-down]="sortOrder() === 'desc'" [class.bi-sort-up]="sortOrder() === 'asc'"></i>
+                </div>
+              </th>
+              <th scope="col" class="text-end pe-4">Acción</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (item of paginatedLogs(); track item._id) {
+              <tr>
+                <!-- USUARIO -->
+                <td class="ps-4">
+                  <div class="d-flex align-items-center gap-3">
+                    <div
+                      class="user-avatar-circle"
+                      [class.user-avatar-admin]="item.userRole === 'admin'"
+                      [class.user-avatar-user]="item.userRole !== 'admin'"
+                    >
+                      {{ getUserInitials(item.userName) }}
+                    </div>
+                    <div>
+                      <div class="fw-semibold text-dark d-flex align-items-center gap-1">
+                        {{ item.userName }}
+                        @if (item.userRole === 'admin') {
+                          <span class="badge bg-primary-subtle text-primary border border-primary-subtle py-0 px-1" style="font-size: 0.65rem">
+                            Admin
+                          </span>
+                        }
+                      </div>
+                      <small class="text-muted d-block" style="font-size: 0.75rem">
+                        {{ item.userEmail }}
+                      </small>
+                    </div>
+                  </div>
+                </td>
+
+                <!-- OPERACIÓN (BADGE) -->
+                <td>
+                  <span class="badge rounded-pill px-2 py-1 fw-medium d-inline-flex align-items-center gap-1" [class]="getActionBadgeClass(item.action)">                    
+                    <span>{{ getActionLabel(item.action) }}</span>
+                  </span>
+                </td>
+
+                <!-- RECURSO AFECTADO -->
+                <td>
+                  <div class="d-flex align-items-center gap-2">                    
+                    <div>
+                      <span class="fw-medium text-dark d-block text-truncate" style="max-width: 200px" [title]="item.resourceName">
+                        {{ item.resourceName }}
+                      </span>
+                      <span class="badge rounded-pill py-0 px-2" [class]="getResourceTypeBadgeClass(item.resourceType)" style="font-size: 0.65rem">
+                        {{ item.resourceType === 'carpeta' ? 'Carpeta' : 'Archivo' }}
+                      </span>
+                    </div>
+                  </div>
+                </td>
+
+                <!-- DETALLE DE LA ACCIÓN -->
+                <td>
+                  <span class="text-secondary small d-inline-block text-truncate" style="max-width: 280px" [title]="getDetailsSummary(item)">
+                    {{ getDetailsSummary(item) }}
+                  </span>
+                </td>
+
+                <!-- FECHA Y HORA -->
+                <td>
+                  <div>
+                    <span class="fw-medium text-dark d-block small">
+                      {{ formatDate(item.timestamp) }}
+                    </span>
+                    <small class="text-muted" style="font-size: 0.725rem">
+                      <i class="bi bi-clock me-1"></i>{{ getRelativeTime(item.timestamp) }}
+                    </small>
+                  </div>
+                </td>
+
+                <!-- BOTÓN DE VER DETALLES -->
+                <td class="text-end pe-4">
+                  <button
+                    type="button"
+                    class="btn btn-sm btn-outline-secondary rounded-pill px-3 d-inline-flex align-items-center gap-1"
+                    (click)="openDetails(item)"
+                    title="Ver detalles completos del evento"
+                  >
+                    <i class="bi bi-eye"></i>
+                    <span>Detalles</span>
+                  </button>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+
+      <!-- FOOTER CON INFORMACIÓN Y PAGINADOR -->
+      <div class="card-footer bg-white border-top py-3 px-4 d-flex flex-wrap align-items-center justify-content-between gap-3">
+        <!-- Selector de registros por página e intervalo mostrado -->
+        <div class="d-flex align-items-center gap-3">
+          <span class="text-muted small">
+            Mostrando
+            <strong class="text-dark">{{ paginationInfo().start }}</strong>
+            a
+            <strong class="text-dark">{{ paginationInfo().end }}</strong>
+            de
+            <strong class="text-dark">{{ paginationInfo().total }}</strong>
+            registros
+          </span>
+
+          <div class="d-flex align-items-center gap-2">
+            <label for="pageSizeSelect" class="text-muted small mb-0 d-none d-sm-inline">Por pág:</label>
+            <select
+              id="pageSizeSelect"
+              class="form-select form-select-sm w-auto"
+              [ngModel]="pageSize()"
+              (ngModelChange)="setPageSize($event)"
+            >
+              @for (opt of pageSizeOptions; track opt) {
+                <option [value]="opt">{{ opt }}</option>
+              }
+            </select>
+          </div>
+        </div>
+
+        <!-- Controles de navegación de página -->
+        <nav aria-label="Navegación de páginas">
+          <ul class="pagination pagination-sm mb-0">
+            <!-- Botón Anterior -->
+            <li class="page-item" [class.disabled]="currentPage() === 1">
+              <button
+                class="page-link"
+                type="button"
+                (click)="prevPage()"
+                [disabled]="currentPage() === 1"
+                aria-label="Página anterior"
+              >
+                <i class="bi bi-chevron-left"></i>
+              </button>
+            </li>
+
+            <!-- Botones numéricos de página -->
+            @for (page of visiblePages(); track $index) {
+              @if (page === '...') {
+                <li class="page-item disabled">
+                  <span class="page-link">...</span>
+                </li>
+              } @else {
+                <li class="page-item" [class.active]="currentPage() === page">
+                  <button class="page-link" type="button" (click)="goToPage(page)">
+                    {{ page }}
+                  </button>
+                </li>
+              }
+            }
+
+            <!-- Botón Siguiente -->
+            <li class="page-item" [class.disabled]="currentPage() >= totalPages()">
+              <button
+                class="page-link"
+                type="button"
+                (click)="nextPage()"
+                [disabled]="currentPage() >= totalPages()"
+                aria-label="Página siguiente"
+              >
+                <i class="bi bi-chevron-right"></i>
+              </button>
+            </li>
+          </ul>
+        </nav>
+      </div>
+    }
+  </section>
+
+  <!-- MODAL DE DETALLE DEL REGISTRO DE AUDITORÍA -->
+  @if (selectedLog()) {
+    <div class="modal-backdrop-custom" (click)="closeDetails()">
+      <div class="modal-dialog-custom" (click)="$event.stopPropagation()">
+        <!-- Encabezado del Modal -->
+        <div class="p-3 px-4 border-bottom d-flex align-items-center justify-content-between bg-light">
+          <div class="d-flex align-items-center gap-2">
+            <span class="badge rounded-pill px-2 py-1" [class]="getActionBadgeClass(selectedLog()!.action)">              
+              {{ getActionLabel(selectedLog()!.action) }}
+            </span>
+            <h5 class="modal-title fw-bold text-dark mb-0 fs-6">
+              Detalle del Evento de Auditoría
+            </h5>
+          </div>
+          <button
+            type="button"
+            class="btn-close"
+            aria-label="Cerrar modal"
+            (click)="closeDetails()"
+          ></button>
+        </div>
+
+        <!-- Contenido del Modal -->
+        <div class="p-4">
+          <!-- Información del Usuario y Momento -->
+          <div class="row g-3 mb-3">
+            <div class="col-12 col-md-6">
+              <label class="text-muted small fw-semibold text-uppercase d-block mb-1">Usuario que ejecutó la acción</label>
+              <div class="p-2 border rounded bg-light">
+                <div class="fw-bold text-dark">{{ selectedLog()!.userName }}</div>
+                <div class="text-muted small">{{ selectedLog()!.userEmail }}</div>
+                <div class="text-muted small mt-1">
+                  ID Usuario: <code class="text-dark">{{ selectedLog()!.userId }}</code>
+                </div>
+              </div>
+            </div>
+
+            <div class="col-12 col-md-6">
+              <label class="text-muted small fw-semibold text-uppercase d-block mb-1">Momento y Conexión</label>
+              <div class="p-2 border rounded bg-light">
+                <div class="fw-semibold text-dark">
+                  <i class="bi bi-calendar3 me-1 text-primary"></i>{{ formatDate(selectedLog()!.timestamp) }}
+                </div>
+                <div class="text-muted small mt-1">
+                  <i class="bi bi-clock me-1 text-primary"></i>{{ getRelativeTime(selectedLog()!.timestamp) }}
+                </div>
+                @if (selectedLog()!.ipAddress) {
+                  <div class="text-muted small mt-1">
+                    <i class="bi bi-hdd-network me-1 text-primary"></i>IP: {{ selectedLog()!.ipAddress }}
+                  </div>
+                }
+              </div>
+            </div>
+          </div>
+
+          <!-- Recurso Afectado -->
+          <div class="mb-3">
+            <label class="text-muted small fw-semibold text-uppercase d-block mb-1">Recurso Afectado</label>
+            <div class="p-3 border rounded d-flex align-items-center gap-3 bg-white">              
+              <div class="flex-grow-1">
+                <div class="fw-bold text-dark">{{ selectedLog()!.resourceName }}</div>
+                <div class="text-muted small d-flex flex-wrap gap-2 mt-1">
+                  <span class="badge rounded-pill" [class]="getResourceTypeBadgeClass(selectedLog()!.resourceType)">
+                    {{ selectedLog()!.resourceType === 'carpeta' ? 'Carpeta' : 'Archivo' }}
+                  </span>
+                  <span>ID Recurso: <code>{{ selectedLog()!.resourceId }}</code></span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Metadatos y Detalles de la Operación -->
+          <div class="mb-3">
+            <label class="text-muted small fw-semibold text-uppercase d-block mb-1">Parámetros de la Operación</label>
+            <div class="p-3 border rounded bg-light">
+              <p class="fw-semibold text-dark mb-2">
+                {{ getDetailsSummary(selectedLog()!) }}
+              </p>
+
+              @if (selectedLog()!.details; as details) {
+                <div class="row g-2 small">
+                  @if (details['sharedToUserName']) {
+                    <div class="col-12 col-sm-6">
+                      <span class="text-muted">Compartido con:</span>
+                      <strong class="d-block text-dark">{{ details['sharedToUserName'] }}</strong>
+                    </div>
+                  }
+                  @if (details['permission']) {
+                    <div class="col-12 col-sm-6">
+                      <span class="text-muted">Nivel de permiso:</span>
+                      <strong class="d-block text-dark text-capitalize">{{ details['permission'] }}</strong>
+                    </div>
+                  }
+                  @if (details['fromFolderName']) {
+                    <div class="col-12 col-sm-6">
+                      <span class="text-muted">Carpeta origen:</span>
+                      <strong class="d-block text-dark">{{ details['fromFolderName'] }}</strong>
+                    </div>
+                  }
+                  @if (details['toFolderName']) {
+                    <div class="col-12 col-sm-6">
+                      <span class="text-muted">Carpeta destino:</span>
+                      <strong class="d-block text-dark">{{ details['toFolderName'] }}</strong>
+                    </div>
+                  }
+                  @if (details['oldName']) {
+                    <div class="col-12 col-sm-6">
+                      <span class="text-muted">Nombre previo:</span>
+                      <strong class="d-block text-dark">{{ details['oldName'] }}</strong>
+                    </div>
+                  }
+                  @if (details['newName']) {
+                    <div class="col-12 col-sm-6">
+                      <span class="text-muted">Nombre nuevo:</span>
+                      <strong class="d-block text-dark">{{ details['newName'] }}</strong>
+                    </div>
+                  }
+                  @if (details['comment']) {
+                    <div class="col-12">
+                      <span class="text-muted">Comentario / Nota:</span>
+                      <div class="text-dark fst-italic">{{ details['comment'] }}</div>
+                    </div>
+                  }
+                </div>
+              }
+            </div>
+          </div>
+
+          <!-- Metadatos RAW / Técnicos -->
+          <div>
+            <label class="text-muted small fw-semibold text-uppercase d-block mb-1">Identificador del Log</label>
+            <pre class="metadata-pre mb-0">{{ selectedLog()!._id }}</pre>
+          </div>
+        </div>
+
+        <!-- Footer del Modal -->
+        <div class="p-3 px-4 border-top bg-light d-flex justify-content-end">
+          <button type="button" class="btn btn-secondary rounded-pill px-4" (click)="closeDetails()">
+            Cerrar
+          </button>
+        </div>
+      </div>
+    </div>
+  }
+</div>
