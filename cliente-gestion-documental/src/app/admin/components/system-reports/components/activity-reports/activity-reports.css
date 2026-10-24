@@ -1,0 +1,26 @@
+.activity-reports-view {
+  width: 100%;
+}
+
+.avatar-circle {
+  font-size: 0.85rem;
+}
+
+.empty-icon-circle {
+  color: #94a3b8 !important;
+  background-color: #f1f5f9 !important;
+}
+
+.subreport-card {
+  transition: all 0.2s ease;
+}
+
+.subreport-icon-box {
+  width: 48px;
+  height: 48px;
+  border-radius: 0.75rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.4rem;
+}
